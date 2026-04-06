@@ -1,0 +1,9 @@
+node_modules
+.svelte-kit
+build
+dist
+.env
+*.db
+__pycache__
+.venv
+.DS_Store
