@@ -20,6 +20,7 @@ from pydantic import BaseModel
 
 from llm import stream_response
 from state import ChatStateManager
+from tools import mcp_client, get_tool_definitions
 
 load_dotenv()
 
@@ -211,6 +212,65 @@ def get_settings():
     }
 
 
+# ─── MCP Server Management ────────────────────────────────────────
+
+class MCPConnectRequest(BaseModel):
+    name: str           # e.g., "stategraph"
+    command: str        # e.g., "/path/to/agentstategraph-mcp"
+    args: list[str] = []
+
+@app.post("/api/mcp/connect")
+async def connect_mcp(req: MCPConnectRequest):
+    """Connect to an MCP server and discover its tools."""
+    try:
+        tools = await mcp_client.connect(req.name, req.command, req.args)
+        return {
+            "name": req.name,
+            "tools": len(tools),
+            "tool_names": [t["name"] for t in tools],
+        }
+    except Exception as e:
+        raise HTTPException(500, f"Failed to connect: {e}")
+
+@app.delete("/api/mcp/{name}")
+async def disconnect_mcp(name: str):
+    await mcp_client.disconnect(name)
+    return {"status": "disconnected", "name": name}
+
+@app.get("/api/mcp/servers")
+def list_mcp_servers():
+    return {
+        name: {
+            "tools": len(server["tools"]),
+            "tool_names": [t["name"] for t in server["tools"]],
+        }
+        for name, server in mcp_client.servers.items()
+    }
+
+@app.get("/api/tools")
+def list_tools():
+    """List all available tools (built-in + MCP)."""
+    return get_tool_definitions()
+
+
+# ─── File Upload ─────────────────────────────────────────────────
+
+class FileUploadRequest(BaseModel):
+    path: str
+
+@app.post("/api/conversations/{conv_id}/file")
+def attach_file(conv_id: str, req: FileUploadRequest):
+    """Read a file and add its contents as a system message in the conversation."""
+    from tools import execute_builtin_tool
+    result = execute_builtin_tool("read_file", {"path": req.path})
+    if "error" in result:
+        raise HTTPException(400, result["error"])
+
+    content = f"📎 **File: {req.path}**\n```\n{result['content'][:5000]}\n```"
+    state.add_message(conv_id, "user", content)
+    return {"status": "ok", "lines": result["lines"], "truncated": result.get("truncated", False)}
+
+
 # ─── Health ──────────────────────────────────────────────────────
 
 @app.get("/api/health")
@@ -219,6 +279,8 @@ def health():
         "status": "ok",
         "conversations": len(state.conversations),
         "stategraph": "connected" if state.sg else "not available",
+        "mcp_servers": len(mcp_client.servers),
+        "tools_available": len(get_tool_definitions()),
         "version": "0.1.0",
     }
 

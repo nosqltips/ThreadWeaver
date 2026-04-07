@@ -144,3 +144,31 @@ export async function getSettings(): Promise<any> {
 	const res = await fetch(`${API_BASE}/settings`);
 	return res.json();
 }
+
+export async function listTools(): Promise<any[]> {
+	const res = await fetch(`${API_BASE}/tools`);
+	return res.json();
+}
+
+export async function connectMCP(name: string, command: string, args: string[] = []): Promise<any> {
+	const res = await fetch(`${API_BASE}/mcp/connect`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ name, command, args }),
+	});
+	return res.json();
+}
+
+export async function listMCPServers(): Promise<any> {
+	const res = await fetch(`${API_BASE}/mcp/servers`);
+	return res.json();
+}
+
+export async function attachFile(convId: string, path: string): Promise<any> {
+	const res = await fetch(`${API_BASE}/conversations/${convId}/file`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ path }),
+	});
+	return res.json();
+}
