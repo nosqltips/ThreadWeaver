@@ -8,10 +8,14 @@
 		searchConversations,
 		createHighlight,
 		getConversationTree,
+		getSettings,
+		listTools,
 		type Message,
 		type ConversationSummary,
 		type ImageData,
 	} from '$lib/api';
+
+	const API_BASE = 'http://localhost:8000/api';
 
 	let conversations = $state<ConversationSummary[]>([]);
 	let currentConvId = $state<string | null>(null);
@@ -24,8 +28,65 @@
 	let showSidebar = $state(true);
 	let pendingImages = $state<ImageData[]>([]);
 	let showNotebook = $state(false);
+	let showSettings = $state(false);
 	let notebooks = $state<any[]>([]);
 	let convTree = $state<any>(null);
+
+	// Provider/model selection
+	let selectedProvider = $state('anthropic');
+	let providers = $state<any>({});
+	let localModels = $state<any[]>([]);
+	let toolCount = $state(0);
+
+	async function loadSettings() {
+		try {
+			const settings = await getSettings();
+			selectedProvider = settings.default_provider;
+			providers = settings.providers || {};
+		} catch {}
+	}
+
+	async function loadLocalModels() {
+		try {
+			const res = await fetch(`${API_BASE}/models/local`);
+			const data = await res.json();
+			localModels = data.models || [];
+		} catch {}
+	}
+
+	async function loadToolCount() {
+		try {
+			const tools = await listTools();
+			toolCount = tools.length;
+		} catch {}
+	}
+
+	async function setProvider(provider: string) {
+		selectedProvider = provider;
+		await fetch(`${API_BASE}/settings/default`, {
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ provider }),
+		});
+	}
+
+	async function setLocalModel(model: string) {
+		await fetch(`${API_BASE}/settings/provider/local`, {
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ model }),
+		});
+		await loadSettings();
+	}
+
+	async function saveApiKey(provider: string, key: string) {
+		await fetch(`${API_BASE}/settings/provider/${provider}`, {
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ api_key: key }),
+		});
+		await loadSettings();
+	}
 
 	async function loadConversations() {
 		try { conversations = await listConversations(); } catch {}
@@ -64,7 +125,7 @@
 		try {
 			const fullResponse = await sendMessage(currentConvId!, userMessage, (partial) => {
 				streamingText = partial;
-			}, undefined, images);
+			}, selectedProvider, images);
 			messages = [...messages, { role: 'assistant', content: fullResponse, timestamp: Date.now() / 1000 }];
 			streamingText = '';
 		} catch (e) {
@@ -137,7 +198,12 @@
 		pendingImages = pendingImages.filter((_, i) => i !== idx);
 	}
 
-	$effect(() => { loadConversations(); });
+	$effect(() => {
+		loadConversations();
+		loadSettings();
+		loadLocalModels();
+		loadToolCount();
+	});
 </script>
 
 <div class="layout">
@@ -207,9 +273,30 @@
 			</button>
 			<h3>{conversations.find(c => c.id === currentConvId)?.title || 'ThreadWeaver'}</h3>
 			<div class="header-actions">
+				<!-- Provider/model selector -->
+				<select class="provider-select" bind:value={selectedProvider} onchange={(e) => setProvider(e.currentTarget.value)}>
+					{#each Object.entries(providers) as [name, p]}
+						<option value={name}>{p.label || name}{p.api_key_set ? '' : ' ⚠'}</option>
+					{/each}
+				</select>
+
+				{#if selectedProvider === 'local' && localModels.length > 0}
+				<select class="model-select" onchange={(e) => setLocalModel(e.currentTarget.value)}>
+					{#each localModels as m}
+						<option value={m.name} selected={m.name === providers?.local?.model}>{m.name}</option>
+					{/each}
+				</select>
+				{/if}
+
+				<button class="header-btn" onclick={() => { showSettings = !showSettings; if (showSettings) loadLocalModels(); }}>
+					⚙
+				</button>
 				<button class="header-btn" class:active={showNotebook} onclick={() => showNotebook = !showNotebook}>
 					📓 {notebooks.length > 0 ? notebooks.length : ''}
 				</button>
+				{#if toolCount > 0}
+				<span class="tool-badge">🔧 {toolCount}</span>
+				{/if}
 			</div>
 		</div>
 
@@ -254,6 +341,61 @@
 				</div>
 				{/if}
 			</div>
+
+			<!-- Settings panel -->
+			{#if showSettings}
+			<div class="settings-panel">
+				<div class="settings-header">
+					<h3>⚙ Settings</h3>
+					<button class="close-btn" onclick={() => showSettings = false}>✕</button>
+				</div>
+
+				{#each Object.entries(providers) as [name, p]}
+				<div class="setting-group">
+					<div class="setting-label">{p.label || name}</div>
+					{#if name !== 'local'}
+					<div class="setting-row">
+						<input type="password" placeholder="API Key"
+							value={p.api_key_set ? '••••••••' : ''}
+							onchange={(e) => saveApiKey(name, e.currentTarget.value)} />
+						{#if p.api_key_set}<span class="key-ok">✓</span>{/if}
+					</div>
+					{/if}
+					<div class="setting-row">
+						{#if name === 'local' && localModels.length > 0}
+						<select onchange={(e) => setLocalModel(e.currentTarget.value)}>
+							{#each localModels as m}
+							<option value={m.name} selected={m.name === p.model}>{m.name}</option>
+							{/each}
+						</select>
+						<button class="refresh-btn" onclick={loadLocalModels}>↻</button>
+						{:else}
+						<input type="text" placeholder="Model" value={p.model || ''}
+							onchange={(e) => fetch(`${API_BASE}/settings/provider/${name}`, {
+								method: 'PUT', headers: {'Content-Type': 'application/json'},
+								body: JSON.stringify({model: e.currentTarget.value})
+							}).then(loadSettings)} />
+						{/if}
+					</div>
+					{#if p.base_url}
+					<div class="setting-row">
+						<input type="text" placeholder="Base URL" value={p.base_url}
+							onchange={(e) => fetch(`${API_BASE}/settings/provider/${name}`, {
+								method: 'PUT', headers: {'Content-Type': 'application/json'},
+								body: JSON.stringify({base_url: e.currentTarget.value})
+							}).then(loadSettings)} />
+					</div>
+					{/if}
+				</div>
+				{/each}
+
+				{#if localModels.length === 0}
+				<div class="setting-note">
+					No local models found. Install <a href="https://ollama.com" target="_blank">Ollama</a> and run <code>ollama pull llama3</code>
+				</div>
+				{/if}
+			</div>
+			{/if}
 
 			<!-- Notebook panel -->
 			{#if showNotebook}
@@ -396,4 +538,25 @@
 	.input-row textarea:focus { outline: none; border-color: #7b68ee; }
 	.send { padding: 10px 18px; background: #7b68ee; color: #fff; border: none; border-radius: 8px; cursor: pointer; align-self: flex-end; }
 	.send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+	/* Provider/model selector */
+	.provider-select, .model-select { background: #1a1a35; color: #ccc; border: 1px solid #333; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer; }
+	.provider-select:focus, .model-select:focus { outline: none; border-color: #7b68ee; }
+	.tool-badge { font-size: 11px; color: #888; padding: 3px 6px; border: 1px solid #333; border-radius: 4px; }
+
+	/* Settings panel */
+	.settings-panel { width: 300px; background: #16162a; border-left: 1px solid #2a2a4a; padding: 12px; overflow-y: auto; flex-shrink: 0; }
+	.settings-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+	.settings-header h3 { margin: 0; font-size: 14px; color: #7b68ee; }
+	.setting-group { background: #1a1a35; border-radius: 6px; padding: 10px; margin-bottom: 8px; }
+	.setting-label { font-size: 12px; font-weight: 600; color: #ccc; margin-bottom: 6px; }
+	.setting-row { display: flex; gap: 4px; margin-bottom: 4px; }
+	.setting-row input, .setting-row select { flex: 1; padding: 5px 8px; background: #0f0f1a; border: 1px solid #333; border-radius: 4px; color: #e0e0e0; font-size: 12px; }
+	.setting-row input:focus, .setting-row select:focus { outline: none; border-color: #7b68ee; }
+	.key-ok { color: #00ff88; font-size: 14px; padding: 4px; }
+	.refresh-btn { background: none; border: 1px solid #333; color: #888; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+	.refresh-btn:hover { color: #7b68ee; border-color: #7b68ee; }
+	.setting-note { font-size: 12px; color: #666; padding: 8px; }
+	.setting-note a { color: #7b68ee; }
+	.setting-note code { background: #1a1a35; padding: 2px 4px; border-radius: 3px; font-size: 11px; }
 </style>
