@@ -14,6 +14,7 @@ import anthropic
 import httpx
 import openai
 
+from config import config
 from tools import execute_tool, get_tool_definitions
 
 
@@ -24,28 +25,17 @@ async def stream_response(
     use_tools: bool = True,
 ) -> AsyncGenerator[str, None]:
     """Stream a chat response, handling tool calls in an agentic loop."""
-    provider = provider or os.getenv("LLM_PROVIDER", "anthropic")
+    provider = provider or config.default_provider
 
     if provider == "anthropic":
         async for chunk in _agentic_loop_anthropic(messages, system_prompt, use_tools):
             yield chunk
-    elif provider == "openai":
-        async for chunk in _agentic_loop_openai(messages, system_prompt, use_tools):
-            yield chunk
-    elif provider == "gemini":
+    elif provider in ("openai", "gemini", "grok"):
         async for chunk in _agentic_loop_openai(
             messages, system_prompt, use_tools,
-            api_key=os.getenv("GEMINI_API_KEY"),
-            base_url=os.getenv("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai"),
-            model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
-        ):
-            yield chunk
-    elif provider == "grok":
-        async for chunk in _agentic_loop_openai(
-            messages, system_prompt, use_tools,
-            api_key=os.getenv("GROK_API_KEY"),
-            base_url=os.getenv("GROK_BASE_URL", "https://api.x.ai/v1"),
-            model=os.getenv("GROK_MODEL", "grok-3"),
+            api_key=config.get_api_key(provider),
+            base_url=config.get_base_url(provider),
+            model=config.get_model(provider),
         ):
             yield chunk
     elif provider == "local":
@@ -63,8 +53,8 @@ async def _agentic_loop_anthropic(
     use_tools: bool = True,
 ) -> AsyncGenerator[str, None]:
     """Anthropic agentic loop: stream text, handle tool calls, repeat."""
-    client = anthropic.AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-    model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
+    client = anthropic.AsyncAnthropic(api_key=config.get_api_key("anthropic"))
+    model = config.get_model("anthropic")
 
     api_messages = [
         {"role": m["role"], "content": _build_anthropic_content(m)}
@@ -136,10 +126,10 @@ async def _agentic_loop_openai(
 ) -> AsyncGenerator[str, None]:
     """OpenAI-compatible agentic loop. Works with OpenAI, Gemini, Grok, etc."""
     client = openai.AsyncOpenAI(
-        api_key=api_key or os.getenv("OPENAI_API_KEY"),
-        base_url=base_url or os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+        api_key=api_key or config.get_api_key("openai"),
+        base_url=base_url or config.get_base_url("openai") or "https://api.openai.com/v1",
     )
-    model = model or os.getenv("OPENAI_MODEL", "gpt-4")
+    model = model or config.get_model("openai") or "gpt-4"
 
     msgs = []
     if system_prompt:
@@ -204,8 +194,8 @@ async def _stream_local(
     system_prompt: str = None,
 ) -> AsyncGenerator[str, None]:
     """Stream from a local model — no tool calling support."""
-    base_url = os.getenv("LOCAL_BASE_URL", "http://localhost:11434/v1")
-    model = os.getenv("LOCAL_MODEL", "llama3")
+    base_url = config.get_base_url("local") or "http://localhost:11434/v1"
+    model = config.get_model("local") or "llama3"
 
     msgs = []
     if system_prompt:

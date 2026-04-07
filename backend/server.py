@@ -18,6 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from config import config
 from llm import stream_response
 from state import ChatStateManager
 from tools import mcp_client, get_tool_definitions
@@ -201,19 +202,66 @@ def search(req: SearchRequest):
 
 # ─── Settings ────────────────────────────────────────────────────
 
+class ProviderUpdate(BaseModel):
+    api_key: Optional[str] = None
+    model: Optional[str] = None
+    base_url: Optional[str] = None
+    enabled: Optional[bool] = None
+
+class DefaultProviderUpdate(BaseModel):
+    provider: str
+
 @app.get("/api/settings")
 def get_settings():
-    providers = {
-        "anthropic": {"model": os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514"), "configured": bool(os.getenv("ANTHROPIC_API_KEY"))},
-        "openai": {"model": os.getenv("OPENAI_MODEL", "gpt-4"), "configured": bool(os.getenv("OPENAI_API_KEY"))},
-        "gemini": {"model": os.getenv("GEMINI_MODEL", "gemini-2.0-flash"), "configured": bool(os.getenv("GEMINI_API_KEY"))},
-        "grok": {"model": os.getenv("GROK_MODEL", "grok-3"), "configured": bool(os.getenv("GROK_API_KEY"))},
-        "local": {"model": os.getenv("LOCAL_MODEL", "llama3"), "base_url": os.getenv("LOCAL_BASE_URL", "http://localhost:11434/v1"), "configured": True},
-    }
     return {
-        "default_provider": os.getenv("LLM_PROVIDER", "anthropic"),
-        "providers": providers,
+        "default_provider": config.default_provider,
+        "providers": config.get_all_providers(),
     }
+
+@app.put("/api/settings/provider/{name}")
+def update_provider(name: str, req: ProviderUpdate):
+    """Update a provider's config (API key, model, base URL)."""
+    updates = {}
+    if req.api_key is not None:
+        updates["api_key"] = req.api_key
+    if req.model is not None:
+        updates["model"] = req.model
+    if req.base_url is not None:
+        updates["base_url"] = req.base_url
+    if req.enabled is not None:
+        updates["enabled"] = req.enabled
+    config.update_provider(name, updates)
+    return {"status": "updated", "provider": name}
+
+@app.put("/api/settings/default")
+def set_default_provider(req: DefaultProviderUpdate):
+    config.default_provider = req.provider
+    return {"status": "ok", "default_provider": req.provider}
+
+@app.get("/api/models/local")
+async def list_local_models():
+    """List available models from the local Ollama instance."""
+    import httpx
+    base_url = config.get_base_url("local") or "http://localhost:11434"
+    # Strip /v1 if present for the Ollama native API
+    ollama_url = base_url.replace("/v1", "")
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.get(f"{ollama_url}/api/tags")
+            if resp.status_code == 200:
+                data = resp.json()
+                models = [
+                    {
+                        "name": m["name"],
+                        "size": m.get("size", 0),
+                        "modified": m.get("modified_at", ""),
+                    }
+                    for m in data.get("models", [])
+                ]
+                return {"models": models, "source": ollama_url}
+            return {"models": [], "error": f"Status {resp.status_code}"}
+    except Exception as e:
+        return {"models": [], "error": str(e)}
 
 
 # ─── MCP Server Management ────────────────────────────────────────
