@@ -203,12 +203,16 @@ def search(req: SearchRequest):
 
 @app.get("/api/settings")
 def get_settings():
+    providers = {
+        "anthropic": {"model": os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514"), "configured": bool(os.getenv("ANTHROPIC_API_KEY"))},
+        "openai": {"model": os.getenv("OPENAI_MODEL", "gpt-4"), "configured": bool(os.getenv("OPENAI_API_KEY"))},
+        "gemini": {"model": os.getenv("GEMINI_MODEL", "gemini-2.0-flash"), "configured": bool(os.getenv("GEMINI_API_KEY"))},
+        "grok": {"model": os.getenv("GROK_MODEL", "grok-3"), "configured": bool(os.getenv("GROK_API_KEY"))},
+        "local": {"model": os.getenv("LOCAL_MODEL", "llama3"), "base_url": os.getenv("LOCAL_BASE_URL", "http://localhost:11434/v1"), "configured": True},
+    }
     return {
-        "provider": os.getenv("LLM_PROVIDER", "anthropic"),
-        "anthropic_model": os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514"),
-        "openai_model": os.getenv("OPENAI_MODEL", "gpt-4"),
-        "local_model": os.getenv("LOCAL_MODEL", "llama3"),
-        "local_base_url": os.getenv("LOCAL_BASE_URL", "http://localhost:11434/v1"),
+        "default_provider": os.getenv("LLM_PROVIDER", "anthropic"),
+        "providers": providers,
     }
 
 

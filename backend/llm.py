@@ -32,8 +32,23 @@ async def stream_response(
     elif provider == "openai":
         async for chunk in _agentic_loop_openai(messages, system_prompt, use_tools):
             yield chunk
+    elif provider == "gemini":
+        async for chunk in _agentic_loop_openai(
+            messages, system_prompt, use_tools,
+            api_key=os.getenv("GEMINI_API_KEY"),
+            base_url=os.getenv("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai"),
+            model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
+        ):
+            yield chunk
+    elif provider == "grok":
+        async for chunk in _agentic_loop_openai(
+            messages, system_prompt, use_tools,
+            api_key=os.getenv("GROK_API_KEY"),
+            base_url=os.getenv("GROK_BASE_URL", "https://api.x.ai/v1"),
+            model=os.getenv("GROK_MODEL", "grok-3"),
+        ):
+            yield chunk
     elif provider == "local":
-        # Local models typically don't support tool calling — just stream
         async for chunk in _stream_local(messages, system_prompt):
             yield chunk
     else:
@@ -115,13 +130,16 @@ async def _agentic_loop_openai(
     messages: list[dict],
     system_prompt: str = None,
     use_tools: bool = True,
+    api_key: str = None,
+    base_url: str = None,
+    model: str = None,
 ) -> AsyncGenerator[str, None]:
-    """OpenAI agentic loop with function calling."""
+    """OpenAI-compatible agentic loop. Works with OpenAI, Gemini, Grok, etc."""
     client = openai.AsyncOpenAI(
-        api_key=os.getenv("OPENAI_API_KEY"),
-        base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+        api_key=api_key or os.getenv("OPENAI_API_KEY"),
+        base_url=base_url or os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
     )
-    model = os.getenv("OPENAI_MODEL", "gpt-4")
+    model = model or os.getenv("OPENAI_MODEL", "gpt-4")
 
     msgs = []
     if system_prompt:
