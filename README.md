@@ -2,7 +2,7 @@
 
 LLM-agnostic chat application with StateGraph-native branching conversations, notebook highlights, and searchable history.
 
-**This is the demo/dogfood project for [StateGraph](https://github.com/nosqltips/StateGraph).**
+**This is the demo/dogfood project for [StateGraph](https://github.com/nosqltips/AgentStateGraph).**
 
 ## What Makes This Different
 
