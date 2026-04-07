@@ -46,9 +46,14 @@ state = ChatStateManager()
 class CreateConversationRequest(BaseModel):
     title: str = "New Chat"
 
+class ImageData(BaseModel):
+    data: str  # base64-encoded
+    media_type: str = "image/png"
+
 class SendMessageRequest(BaseModel):
     content: str
     provider: Optional[str] = None  # override LLM provider for this message
+    images: Optional[list[ImageData]] = None  # multimodal: attached images
 
 class BranchRequest(BaseModel):
     at_message: int
@@ -115,14 +120,19 @@ async def send_message(conv_id: str, req: SendMessageRequest):
     if not conv:
         raise HTTPException(404, "Conversation not found")
 
-    # Add user message
-    state.add_message(conv_id, "user", req.content)
+    # Add user message (with optional images)
+    images = None
+    if req.images:
+        images = [{"data": img.data, "media_type": img.media_type} for img in req.images]
+    state.add_message(conv_id, "user", req.content, images=images)
 
     # Build message history for the LLM
-    messages = [
-        {"role": m.role, "content": m.content}
-        for m in conv.messages
-    ]
+    messages = []
+    for m in conv.messages:
+        msg = {"role": m.role, "content": m.content}
+        if hasattr(m, "images") and m.images:
+            msg["images"] = m.images
+        messages.append(msg)
 
     # Stream the response
     async def generate():

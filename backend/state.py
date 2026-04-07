@@ -20,6 +20,7 @@ class Message:
     role: str  # "user" or "assistant"
     content: str
     timestamp: float = field(default_factory=time.time)
+    images: list = field(default_factory=list)  # [{data: base64, media_type: str}]
 
 
 @dataclass
@@ -60,12 +61,12 @@ class ChatStateManager:
     def get_conversation(self, conv_id: str) -> Optional[Conversation]:
         return self.conversations.get(conv_id)
 
-    def add_message(self, conv_id: str, role: str, content: str) -> Message:
+    def add_message(self, conv_id: str, role: str, content: str, images: list = None) -> Message:
         """Add a message to a conversation."""
         conv = self.conversations.get(conv_id)
         if not conv:
             raise ValueError(f"Conversation {conv_id} not found")
-        msg = Message(role=role, content=content)
+        msg = Message(role=role, content=content, images=images or [])
         conv.messages.append(msg)
 
         # Auto-title from first user message

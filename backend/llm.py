@@ -1,9 +1,11 @@
 """
 LLM connectors — supports Anthropic, OpenAI, and local models.
+Multimodal: text + images supported across all providers.
 
 All connectors return an async generator of text chunks (streaming).
 """
 
+import base64
 import os
 from typing import AsyncGenerator
 
@@ -33,6 +35,43 @@ async def stream_response(
         yield f"Unknown provider: {provider}"
 
 
+def _build_anthropic_content(msg: dict) -> list | str:
+    """Convert a message to Anthropic content format (supports images)."""
+    if "images" not in msg or not msg["images"]:
+        return msg["content"]
+
+    # Multimodal: text + images
+    content = []
+    for img in msg["images"]:
+        content.append({
+            "type": "image",
+            "source": {
+                "type": "base64",
+                "media_type": img.get("media_type", "image/png"),
+                "data": img["data"],
+            },
+        })
+    content.append({"type": "text", "text": msg["content"]})
+    return content
+
+
+def _build_openai_content(msg: dict) -> list | str:
+    """Convert a message to OpenAI content format (supports images)."""
+    if "images" not in msg or not msg["images"]:
+        return msg["content"]
+
+    content = []
+    for img in msg["images"]:
+        content.append({
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:{img.get('media_type', 'image/png')};base64,{img['data']}",
+            },
+        })
+    content.append({"type": "text", "text": msg["content"]})
+    return content
+
+
 async def _stream_anthropic(
     messages: list[dict],
     system_prompt: str = None,
@@ -43,10 +82,18 @@ async def _stream_anthropic(
     )
     model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
 
+    # Build messages with multimodal support
+    api_messages = []
+    for msg in messages:
+        api_messages.append({
+            "role": msg["role"],
+            "content": _build_anthropic_content(msg),
+        })
+
     kwargs = {
         "model": model,
         "max_tokens": 4096,
-        "messages": messages,
+        "messages": api_messages,
     }
     if system_prompt:
         kwargs["system"] = system_prompt
@@ -70,7 +117,11 @@ async def _stream_openai(
     msgs = []
     if system_prompt:
         msgs.append({"role": "system", "content": system_prompt})
-    msgs.extend(messages)
+    for msg in messages:
+        msgs.append({
+            "role": msg["role"],
+            "content": _build_openai_content(msg),
+        })
 
     stream = await client.chat.completions.create(
         model=model,
@@ -94,7 +145,11 @@ async def _stream_local(
     msgs = []
     if system_prompt:
         msgs.append({"role": "system", "content": system_prompt})
-    msgs.extend(messages)
+    for msg in messages:
+        msgs.append({
+            "role": msg["role"],
+            "content": _build_openai_content(msg),  # Ollama supports OpenAI image format
+        })
 
     async with httpx.AsyncClient(timeout=120) as client:
         async with client.stream(

@@ -4,10 +4,16 @@
 
 const API_BASE = 'http://localhost:8000/api';
 
+export interface ImageData {
+	data: string;  // base64
+	media_type: string;
+}
+
 export interface Message {
 	role: 'user' | 'assistant';
 	content: string;
 	timestamp: number;
+	images?: ImageData[];
 }
 
 export interface Conversation {
@@ -56,12 +62,17 @@ export async function sendMessage(
 	convId: string,
 	content: string,
 	onChunk: (text: string) => void,
-	provider?: string
+	provider?: string,
+	images?: ImageData[]
 ): Promise<string> {
+	const body: any = { content, provider };
+	if (images && images.length > 0) {
+		body.images = images;
+	}
 	const res = await fetch(`${API_BASE}/conversations/${convId}/messages`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ content, provider }),
+		body: JSON.stringify(body),
 	});
 
 	const reader = res.body!.getReader();
