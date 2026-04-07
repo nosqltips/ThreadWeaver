@@ -183,6 +183,14 @@ def create_highlight(conv_id: str, req: HighlightRequest):
         raise HTTPException(400, str(e))
 
 
+# ─── Provenance (AgentStateGraph) ─────────────────────────────────
+
+@app.get("/api/conversations/{conv_id}/provenance")
+def get_provenance(conv_id: str):
+    """Get the AgentStateGraph provenance trail for a conversation."""
+    return state.get_provenance(conv_id)
+
+
 # ─── Search ──────────────────────────────────────────────────────
 
 @app.post("/api/search")
@@ -210,6 +218,7 @@ def health():
     return {
         "status": "ok",
         "conversations": len(state.conversations),
+        "stategraph": "connected" if state.sg else "not available",
         "version": "0.1.0",
     }
 
