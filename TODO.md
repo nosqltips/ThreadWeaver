@@ -1,5 +1,12 @@
 # ThreadWeaver — Feature Backlog
 
+## Next Session
+- [ ] Update README.md to reflect all current features (multimodal, 6 providers, tool calling, MCP, settings UI, accent colors, AgentStateGraph integration)
+- [ ] Update AgentStateGraph README.md similarly
+- [ ] Deploy ThreadWeaver as BYOK demo (static frontend + user's own API keys)
+- [ ] Component refactor (split +page.svelte into ChatMessage, Sidebar, Settings, Notebook, ModelSelector)
+- [ ] Blog post visibility push
+
 ## Missing vs Competitors
 
 ### High Priority
