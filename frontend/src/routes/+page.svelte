@@ -31,6 +31,8 @@
 	let showSettings = $state(false);
 	let notebooks = $state<any[]>([]);
 	let convTree = $state<any>(null);
+	let expandedNote = $state<number | null>(null);
+	let noteComments = $state<Record<number, string[]>>({});
 
 	// Provider/model selection
 	let selectedProvider = $state('anthropic');
@@ -149,6 +151,39 @@
 		const result = await createHighlight(currentConvId, startIdx, endIdx, tag);
 		notebooks = [...notebooks, result];
 		showNotebook = true;
+	}
+
+	async function branchFromNote(noteIndex: number) {
+		const note = notebooks[noteIndex];
+		if (!note || !currentConvId) return;
+		// Branch from the end of the highlighted messages
+		const { id } = await branchConversation(currentConvId, note.end_index);
+		await loadConversations();
+		await selectConversation(id);
+	}
+
+	function addNoteComment(noteIndex: number) {
+		const comment = prompt('Add a comment:');
+		if (!comment) return;
+		if (!noteComments[noteIndex]) noteComments[noteIndex] = [];
+		noteComments[noteIndex] = [...noteComments[noteIndex], comment];
+	}
+
+	function setBackgroundColor(color: string) {
+		document.documentElement.style.setProperty('--bg-primary', color);
+		// Derive secondary/tertiary from primary
+		document.documentElement.style.setProperty('--bg-secondary', lighten(color, 8));
+		document.documentElement.style.setProperty('--bg-tertiary', lighten(color, 12));
+		document.documentElement.style.setProperty('--bg-hover', lighten(color, 16));
+		localStorage.setItem('tw-bg', color);
+	}
+
+	function lighten(hex: string, amount: number): string {
+		const num = parseInt(hex.replace('#', ''), 16);
+		const r = Math.min(255, (num >> 16) + amount);
+		const g = Math.min(255, ((num >> 8) & 0xFF) + amount);
+		const b = Math.min(255, (num & 0xFF) + amount);
+		return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
 	}
 
 	async function doSearch() {
@@ -288,14 +323,20 @@
 				</select>
 				{/if}
 
-				<button class="header-btn" onclick={() => { showSettings = !showSettings; if (showSettings) loadLocalModels(); }}>
-					⚙
+				<button class="header-icon-btn" title="Settings" onclick={() => { showSettings = !showSettings; showNotebook = false; if (showSettings) loadLocalModels(); }}
+					class:active={showSettings}>
+					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
 				</button>
-				<button class="header-btn" class:active={showNotebook} onclick={() => showNotebook = !showNotebook}>
-					📓 {notebooks.length > 0 ? notebooks.length : ''}
+				<button class="header-icon-btn" title="Notebook" onclick={() => { showNotebook = !showNotebook; showSettings = false; }}
+					class:active={showNotebook}>
+					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h6"/><path d="M8 11h8"/></svg>
+					{#if notebooks.length > 0}<span class="icon-badge">{notebooks.length}</span>{/if}
 				</button>
 				{#if toolCount > 0}
-				<span class="tool-badge">🔧 {toolCount}</span>
+				<button class="header-icon-btn" title="{toolCount} tools available">
+					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+					<span class="icon-badge">{toolCount}</span>
+				</button>
 				{/if}
 			</div>
 		</div>
@@ -316,8 +357,12 @@
 					<div class="msg-header">
 						<span class="role">{msg.role === 'user' ? 'You' : 'Assistant'}</span>
 						<div class="msg-actions">
-							<button class="action-btn" title="Save to notebook" onclick={() => highlight(i, i)}>📓</button>
-							<button class="action-btn" title="Branch from here" onclick={() => branch(i)}>⑂</button>
+							<button class="action-btn" title="Save to notebook" onclick={() => highlight(i, i)}>
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+							</button>
+							<button class="action-btn" title="Branch from here" onclick={() => branch(i)}>
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><path d="M6 9v3a6 6 0 0 0 6 6h3"/><line x1="18" y1="9" x2="18" y2="15"/></svg>
+							</button>
 						</div>
 					</div>
 					{#if msg.images && msg.images.length > 0}
@@ -404,7 +449,6 @@
 							'#f59e0b', '#ef4444', '#ec4899', '#8b5cf6', '#14b8a6',
 						] as color}
 						<button class="color-swatch"
-							class:active={getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() === color}
 							style="background: {color}"
 							onclick={() => {
 								document.documentElement.style.setProperty('--accent', color);
@@ -416,6 +460,22 @@
 						{/each}
 					</div>
 				</div>
+
+				<!-- Background color picker -->
+				<div class="setting-group">
+					<div class="setting-label">Background</div>
+					<div class="color-picker-row">
+						{#each [
+							'#0f0f1a', '#0d1117', '#1a1a2e', '#0f172a', '#18181b',
+							'#1c1917', '#0c0a09', '#0a0a0a', '#111827', '#0e1629',
+						] as color}
+						<button class="color-swatch bg-swatch"
+							style="background: {color}; border: 2px solid #333"
+							onclick={() => setBackgroundColor(color)}
+						></button>
+						{/each}
+					</div>
+				</div>
 			</div>
 			{/if}
 
@@ -423,20 +483,59 @@
 			{#if showNotebook}
 			<div class="notebook">
 				<div class="notebook-header">
-					<h3>📓 Notebook</h3>
-					<button class="close-btn" onclick={() => showNotebook = false}>✕</button>
+					<h3>Notebook</h3>
+					<button class="close-btn" onclick={() => { showNotebook = false; expandedNote = null; }}>✕</button>
 				</div>
 				{#if notebooks.length === 0}
-				<p class="notebook-empty">No highlights yet. Click 📓 on any message to save it.</p>
+				<p class="notebook-empty">No highlights yet. Click the bookmark icon on any message to save it.</p>
 				{:else}
 				{#each notebooks as note, i}
-				<div class="note">
-					<div class="note-tag">{note.tag}</div>
-					{#each note.messages as m}
-					<div class="note-msg">
-						<span class="note-role">{m.role}</span>: {m.content.slice(0, 100)}{m.content.length > 100 ? '...' : ''}
+				<div class="note" class:expanded={expandedNote === i}>
+					<div class="note-header" onclick={() => expandedNote = expandedNote === i ? null : i}>
+						<span class="note-tag">{note.tag}</span>
+						<span class="note-preview">
+							{#if expandedNote !== i}
+								{note.messages[0]?.content.slice(0, 60)}{note.messages[0]?.content.length > 60 ? '...' : ''}
+							{/if}
+						</span>
+						<span class="note-expand">{expandedNote === i ? '▾' : '▸'}</span>
 					</div>
-					{/each}
+
+					{#if expandedNote === i}
+					<div class="note-body">
+						{#each note.messages as m}
+						<div class="note-full-msg">
+							<span class="note-role">{m.role}</span>
+							<div class="note-content">{m.content}</div>
+						</div>
+						{/each}
+
+						<!-- Comments -->
+						{#if noteComments[i]?.length}
+						<div class="note-comments">
+							<div class="note-comments-title">Comments</div>
+							{#each noteComments[i] as comment}
+							<div class="note-comment">{comment}</div>
+							{/each}
+						</div>
+						{/if}
+
+						<!-- Actions -->
+						<div class="note-actions">
+							<button class="note-action-btn" onclick={() => addNoteComment(i)}>
+								💬 Comment
+							</button>
+							<button class="note-action-btn" onclick={() => branchFromNote(i)}>
+								⑂ New Chat
+							</button>
+							<button class="note-action-btn" onclick={() => {
+								navigator.clipboard.writeText(note.messages.map(m => `${m.role}: ${m.content}`).join('\n\n'));
+							}}>
+								📋 Copy
+							</button>
+						</div>
+					</div>
+					{/if}
 				</div>
 				{/each}
 				{/if}
@@ -515,9 +614,11 @@
 	.toggle { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px 8px; transition: color var(--transition); }
 	.toggle:hover { color: var(--accent); }
 	.header-actions { display: flex; gap: 6px; align-items: center; }
-	.header-btn { background: none; border: 1px solid var(--border); color: var(--text-muted); padding: 5px 10px; border-radius: var(--radius-sm); cursor: pointer; font-size: 12px; transition: all var(--transition); }
-	.header-btn:hover { border-color: var(--accent); color: var(--accent); }
-	.header-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-subtle); }
+	.header-icon-btn { background: none; border: 1px solid var(--border); color: var(--text-muted); padding: 6px 8px; border-radius: var(--radius-sm); cursor: pointer; transition: all var(--transition); display: flex; align-items: center; justify-content: center; position: relative; min-width: 36px; min-height: 36px; }
+	.header-icon-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-subtle); }
+	.header-icon-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-subtle); }
+	.header-icon-btn svg { flex-shrink: 0; }
+	.icon-badge { position: absolute; top: -4px; right: -4px; background: var(--accent); color: #fff; font-size: 9px; font-weight: 700; padding: 1px 4px; border-radius: 8px; min-width: 16px; text-align: center; }
 
 	.main-content { flex: 1; display: flex; overflow: hidden; }
 	.messages { flex: 1; overflow-y: auto; padding: 16px; scroll-behavior: smooth; }
@@ -555,11 +656,25 @@
 	.close-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; transition: all var(--transition); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); }
 	.close-btn:hover { color: var(--error); background: rgba(255,68,68,0.1); }
 	.notebook-empty { color: var(--text-muted); font-size: 13px; text-align: center; padding: 30px 20px; }
-	.note { background: var(--bg-tertiary); border-radius: var(--radius); padding: 12px; margin-bottom: 8px; border-left: 3px solid var(--accent); animation: scaleIn 0.2s ease; transition: transform var(--transition); }
-	.note:hover { transform: translateX(2px); }
-	.note-tag { font-size: 10px; color: var(--accent); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 6px; }
-	.note-msg { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; line-height: 1.4; }
-	.note-role { font-weight: 600; color: var(--text-muted); }
+	.note { background: var(--bg-tertiary); border-radius: var(--radius); margin-bottom: 8px; border-left: 3px solid var(--accent); animation: scaleIn 0.2s ease; transition: all var(--transition); overflow: hidden; }
+	.note:hover { border-left-width: 4px; }
+	.note.expanded { border-left-color: var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+	.note-header { padding: 10px 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+	.note-header:hover { background: var(--bg-hover); }
+	.note-tag { font-size: 10px; color: var(--accent); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; flex-shrink: 0; }
+	.note-preview { font-size: 12px; color: var(--text-muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.note-expand { color: var(--text-muted); font-size: 10px; flex-shrink: 0; }
+	.note-body { padding: 0 12px 12px; border-top: 1px solid var(--border); animation: fadeIn 0.2s ease; }
+	.note-full-msg { padding: 8px 0; border-bottom: 1px solid var(--border); }
+	.note-full-msg:last-of-type { border-bottom: none; }
+	.note-role { font-size: 10px; font-weight: 700; color: var(--accent); text-transform: uppercase; display: block; margin-bottom: 4px; }
+	.note-content { font-size: 13px; color: var(--text-primary); line-height: 1.6; white-space: pre-wrap; }
+	.note-comments { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+	.note-comments-title { font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 4px; }
+	.note-comment { font-size: 12px; color: var(--text-secondary); padding: 4px 8px; background: var(--bg-primary); border-radius: var(--radius-sm); margin-bottom: 4px; }
+	.note-actions { display: flex; gap: 6px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); }
+	.note-action-btn { background: none; border: 1px solid var(--border); color: var(--text-muted); padding: 4px 10px; border-radius: var(--radius-sm); cursor: pointer; font-size: 11px; transition: all var(--transition); }
+	.note-action-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-subtle); }
 
 	/* Settings panel */
 	.setting-group { background: var(--bg-tertiary); border-radius: var(--radius); padding: 12px; margin-bottom: 10px; transition: border var(--transition); border: 1px solid transparent; }

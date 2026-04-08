@@ -1,12 +1,29 @@
 <script lang="ts">
 	let { children } = $props();
 
-	// Load saved accent color
-	const savedColor = typeof localStorage !== 'undefined' ? localStorage.getItem('tw-accent') : null;
-	if (savedColor && typeof document !== 'undefined') {
-		document.documentElement.style.setProperty('--accent', savedColor);
-		document.documentElement.style.setProperty('--accent-glow', savedColor + '33');
-		document.documentElement.style.setProperty('--accent-subtle', savedColor + '18');
+	// Load saved colors
+	if (typeof localStorage !== 'undefined' && typeof document !== 'undefined') {
+		const savedAccent = localStorage.getItem('tw-accent');
+		if (savedAccent) {
+			document.documentElement.style.setProperty('--accent', savedAccent);
+			document.documentElement.style.setProperty('--accent-glow', savedAccent + '33');
+			document.documentElement.style.setProperty('--accent-subtle', savedAccent + '18');
+		}
+		const savedBg = localStorage.getItem('tw-bg');
+		if (savedBg) {
+			document.documentElement.style.setProperty('--bg-primary', savedBg);
+			// Derive secondary/tertiary
+			const num = parseInt(savedBg.replace('#', ''), 16);
+			const lighten = (n: number, amt: number) => {
+				const r = Math.min(255, (n >> 16) + amt);
+				const g = Math.min(255, ((n >> 8) & 0xFF) + amt);
+				const b = Math.min(255, (n & 0xFF) + amt);
+				return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
+			};
+			document.documentElement.style.setProperty('--bg-secondary', lighten(num, 8));
+			document.documentElement.style.setProperty('--bg-tertiary', lighten(num, 12));
+			document.documentElement.style.setProperty('--bg-hover', lighten(num, 16));
+		}
 	}
 </script>
 
