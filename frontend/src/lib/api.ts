@@ -217,3 +217,8 @@ export async function addConversationToProject(convId: string, projectId: string
 	});
 	return res.json();
 }
+
+export async function getProvenance(convId: string): Promise<any[]> {
+	const res = await fetch(`${API_BASE}/conversations/${convId}/provenance`);
+	return res.json();
+}

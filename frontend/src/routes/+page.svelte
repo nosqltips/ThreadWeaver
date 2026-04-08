@@ -15,6 +15,7 @@
 		createProject,
 		listProjects,
 		addConversationToProject,
+		getProvenance,
 		type Message,
 		type ConversationSummary,
 		type ImageData,
@@ -41,6 +42,15 @@
 	let projects = $state<any[]>([]);
 	let selectedProjectId = $state<string | null>(null);
 	let showArchived = $state(false);
+	let showProvenance = $state(false);
+	let provenanceData = $state<any[]>([]);
+
+	async function loadProvenance() {
+		if (!currentConvId) { provenanceData = []; return; }
+		try {
+			provenanceData = await getProvenance(currentConvId);
+		} catch { provenanceData = []; }
+	}
 
 	async function loadProjects() {
 		try { projects = await listProjects(); } catch {}
@@ -431,7 +441,11 @@
 					class:active={showSettings}>
 					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
 				</button>
-				<button class="header-icon-btn" title="Notebook" onclick={() => { showNotebook = !showNotebook; showSettings = false; }}
+				<button class="header-icon-btn" title="Provenance" onclick={() => { showProvenance = !showProvenance; showSettings = false; showNotebook = false; if (showProvenance) loadProvenance(); }}
+					class:active={showProvenance}>
+					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20v-6M6 20V10M18 20V4"/></svg>
+				</button>
+				<button class="header-icon-btn" title="Notebook" onclick={() => { showNotebook = !showNotebook; showSettings = false; showProvenance = false; }}
 					class:active={showNotebook}>
 					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h6"/><path d="M8 11h8"/></svg>
 					{#if notebooks.length > 0}<span class="icon-badge">{notebooks.length}</span>{/if}
@@ -628,6 +642,54 @@
 						{/each}
 					</div>
 				</div>
+			</div>
+			{/if}
+
+			<!-- Provenance panel (AgentStateGraph) -->
+			{#if showProvenance}
+			<div class="provenance-panel">
+				<div class="provenance-header">
+					<h3>Provenance</h3>
+					<div class="provenance-badge">AgentStateGraph</div>
+					<button class="close-btn" onclick={() => showProvenance = false}>✕</button>
+				</div>
+
+				{#if provenanceData.length === 0}
+				<div class="provenance-empty">
+					<div class="prov-icon">📊</div>
+					<p>No provenance data available.</p>
+					<p class="prov-hint">When AgentStateGraph is connected, every message exchange is recorded as a versioned commit with intent, reasoning, and audit trail.</p>
+					<a href="https://agentstategraph.dev" target="_blank" class="prov-link">Learn about AgentStateGraph</a>
+				</div>
+				{:else}
+				<div class="provenance-timeline">
+					{#each provenanceData as entry, i}
+					<div class="prov-entry" style="animation-delay: {i * 0.05}s">
+						<div class="prov-dot"></div>
+						<div class="prov-content">
+							<div class="prov-entry-header">
+								<span class="prov-category">{entry.intent?.category || 'Unknown'}</span>
+								<span class="prov-time">{entry.timestamp ? new Date(entry.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : ''}</span>
+							</div>
+							<div class="prov-description">{entry.intent?.description || ''}</div>
+							{#if entry.reasoning}
+							<div class="prov-reasoning">{entry.reasoning}</div>
+							{/if}
+							<div class="prov-meta">
+								<span class="prov-agent">{entry.agent || 'unknown'}</span>
+								{#if entry.confidence != null}
+								<span class="prov-confidence">{Math.round(entry.confidence * 100)}%</span>
+								{/if}
+								{#if entry.intent?.tags?.length}
+								<span class="prov-tags">{entry.intent.tags.join(', ')}</span>
+								{/if}
+							</div>
+							<div class="prov-id">{entry.id || ''}</div>
+						</div>
+					</div>
+					{/each}
+				</div>
+				{/if}
 			</div>
 			{/if}
 
@@ -837,6 +899,38 @@
 	.msg-images { margin-bottom: 8px; }
 	.attached-image { max-width: 300px; max-height: 200px; border-radius: var(--radius); border: 1px solid var(--border); transition: transform var(--transition); }
 	.attached-image:hover { transform: scale(1.02); }
+
+	/* Provenance panel */
+	.provenance-panel { width: 320px; background: var(--bg-secondary); border-left: 1px solid var(--border); padding: 14px; overflow-y: auto; flex-shrink: 0; animation: slideInRight 0.3s ease; }
+	.provenance-header { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+	.provenance-header h3 { margin: 0; font-size: 14px; color: var(--accent); font-weight: 600; flex: 1; }
+	.provenance-badge { font-size: 9px; color: var(--accent); background: var(--accent-subtle); border: 1px solid var(--accent); padding: 2px 6px; border-radius: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+	.provenance-empty { text-align: center; padding: 24px 12px; }
+	.prov-icon { font-size: 32px; margin-bottom: 8px; }
+	.provenance-empty p { font-size: 13px; color: var(--text-muted); line-height: 1.5; margin: 4px 0; }
+	.prov-hint { font-size: 12px !important; }
+	.prov-link { display: inline-block; margin-top: 12px; font-size: 12px; color: var(--accent); }
+
+	.provenance-timeline { position: relative; padding-left: 16px; }
+	.provenance-timeline::before { content: ''; position: absolute; left: 5px; top: 8px; bottom: 8px; width: 2px; background: var(--border); border-radius: 1px; }
+
+	.prov-entry { position: relative; margin-bottom: 12px; animation: fadeIn 0.3s ease backwards; }
+	.prov-dot { position: absolute; left: -14px; top: 6px; width: 10px; height: 10px; background: var(--accent); border-radius: 50%; border: 2px solid var(--bg-secondary); z-index: 1; }
+	.prov-content { background: var(--bg-tertiary); border-radius: var(--radius); padding: 10px 12px; border: 1px solid var(--border); transition: all var(--transition); }
+	.prov-content:hover { border-color: var(--accent); }
+
+	.prov-entry-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+	.prov-category { font-size: 10px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; background: var(--accent-subtle); padding: 1px 6px; border-radius: 3px; }
+	.prov-time { font-size: 10px; color: var(--text-muted); }
+
+	.prov-description { font-size: 12px; color: var(--text-primary); margin-bottom: 4px; line-height: 1.4; }
+	.prov-reasoning { font-size: 11px; color: var(--text-muted); font-style: italic; margin-bottom: 6px; line-height: 1.4; padding: 4px 8px; background: var(--bg-primary); border-radius: var(--radius-sm); border-left: 2px solid var(--accent); }
+
+	.prov-meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+	.prov-agent { font-size: 10px; color: var(--text-muted); background: var(--bg-primary); padding: 1px 5px; border-radius: 3px; }
+	.prov-confidence { font-size: 10px; color: var(--success); font-weight: 600; }
+	.prov-tags { font-size: 10px; color: var(--text-muted); }
+	.prov-id { font-size: 9px; color: var(--text-muted); opacity: 0.5; margin-top: 4px; font-family: monospace; }
 
 	/* Side panels with animation */
 	.notebook, .settings-panel { width: 300px; background: var(--bg-secondary); border-left: 1px solid var(--border); padding: 14px; overflow-y: auto; flex-shrink: 0; animation: slideInRight 0.3s ease; }
