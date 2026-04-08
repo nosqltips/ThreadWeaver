@@ -433,16 +433,64 @@
 				{#if messages.length === 0}
 				<div class="welcome">
 					<h1>ThreadWeaver</h1>
-					<p>AI chat with branchable conversations.</p>
-					<p>Every message is versioned. Branch from any point. Paste images.</p>
-					<button onclick={newChat}>Start chatting</button>
+					<p class="welcome-tagline">AI chat where every conversation is versioned, branchable, and searchable.</p>
+
+					<div class="welcome-features">
+						<div class="welcome-feature">
+							<div class="wf-icon">⑂</div>
+							<div class="wf-text">
+								<strong>Branch from any message</strong>
+								<span>Explore "what if I'd asked differently?" without losing your original thread.</span>
+							</div>
+						</div>
+						<div class="welcome-feature">
+							<div class="wf-icon">🖼</div>
+							<div class="wf-text">
+								<strong>Multimodal</strong>
+								<span>Paste images, drop files. Works with Claude, GPT, Gemini, Grok, and local models.</span>
+							</div>
+						</div>
+						<div class="welcome-feature">
+							<div class="wf-icon">🔧</div>
+							<div class="wf-text">
+								<strong>Tool calling + MCP</strong>
+								<span>Read files, run commands, connect MCP servers. The AI acts, not just talks.</span>
+							</div>
+						</div>
+						<div class="welcome-feature">
+							<div class="wf-icon">📓</div>
+							<div class="wf-text">
+								<strong>Notebook</strong>
+								<span>Save any message with a tag. Comment, copy, or start a new chat from highlights.</span>
+							</div>
+						</div>
+						<div class="welcome-feature">
+							<div class="wf-icon">📁</div>
+							<div class="wf-text">
+								<strong>Projects</strong>
+								<span>Group related conversations. Shared context across chats in a project.</span>
+							</div>
+						</div>
+						<div class="welcome-feature">
+							<div class="wf-icon">🔍</div>
+							<div class="wf-text">
+								<strong>Full provenance</strong>
+								<span>Powered by <a href="https://agentstategraph.dev" target="_blank">AgentStateGraph</a> — every message exchange is a versioned commit with intent, reasoning, and audit trail.</span>
+							</div>
+						</div>
+					</div>
+
+					<p class="welcome-hint">Select or create a chat to get started. Type a message or paste an image.</p>
 				</div>
 				{/if}
 
 				{#each messages as msg, i}
 				<div class="msg {msg.role}">
 					<div class="msg-header">
-						<span class="role">{msg.role === 'user' ? 'You' : 'Assistant'}</span>
+						<div class="msg-meta">
+							<span class="role">{msg.role === 'user' ? 'You' : 'Assistant'}</span>
+							<span class="msg-time">{new Date(msg.timestamp * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</span>
+						</div>
 						<div class="msg-actions">
 							<button class="action-btn" title="Save to notebook" onclick={() => highlight(i, i)}>
 								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
@@ -732,11 +780,24 @@
 	.messages { flex: 1; overflow-y: auto; padding: 16px; scroll-behavior: smooth; }
 
 	/* Welcome screen */
-	.welcome { text-align: center; padding: 80px 20px; animation: fadeIn 0.5s ease; }
-	.welcome h1 { color: var(--accent); font-size: 32px; font-weight: 700; letter-spacing: -0.5px; background: linear-gradient(135deg, var(--accent), #00d4ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-	.welcome p { color: var(--text-muted); font-size: 15px; margin-top: 8px; }
-	.welcome button { margin-top: 20px; padding: 12px 28px; background: var(--accent); color: #fff; border: none; border-radius: var(--radius); font-size: 15px; font-weight: 500; cursor: pointer; transition: all var(--transition); }
-	.welcome button:hover { filter: brightness(1.15); transform: translateY(-2px); box-shadow: 0 6px 20px var(--accent-glow); }
+	.welcome { padding: 40px 20px; max-width: 640px; margin: 0 auto; animation: fadeIn 0.5s ease; }
+	.welcome h1 { text-align: center; color: var(--accent); font-size: 32px; font-weight: 700; letter-spacing: -0.5px; background: linear-gradient(135deg, var(--accent), #00d4ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 4px; }
+	.welcome-tagline { text-align: center; color: var(--text-muted); font-size: 15px; margin-bottom: 28px; }
+	.welcome-features { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
+	.welcome-feature { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); transition: all var(--transition); animation: fadeIn 0.4s ease backwards; }
+	.welcome-feature:nth-child(1) { animation-delay: 0.05s; }
+	.welcome-feature:nth-child(2) { animation-delay: 0.1s; }
+	.welcome-feature:nth-child(3) { animation-delay: 0.15s; }
+	.welcome-feature:nth-child(4) { animation-delay: 0.2s; }
+	.welcome-feature:nth-child(5) { animation-delay: 0.25s; }
+	.welcome-feature:nth-child(6) { animation-delay: 0.3s; }
+	.welcome-feature:hover { border-color: var(--accent); background: var(--accent-subtle); }
+	.wf-icon { font-size: 20px; flex-shrink: 0; width: 32px; text-align: center; }
+	.wf-text { display: flex; flex-direction: column; gap: 2px; }
+	.wf-text strong { font-size: 13px; color: var(--text-primary); }
+	.wf-text span { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+	.wf-text a { color: var(--accent); }
+	.welcome-hint { text-align: center; color: var(--text-muted); font-size: 13px; font-style: italic; }
 
 	/* Messages with animations */
 	.msg { margin-bottom: 14px; padding: 12px 16px; border-radius: var(--radius-lg); max-width: 800px; animation: fadeIn 0.3s ease; transition: box-shadow var(--transition); }
@@ -746,7 +807,9 @@
 	.msg.assistant { background: var(--bg-secondary); border: 1px solid var(--border); animation: slideInLeft 0.3s ease; }
 	.msg.streaming { border-color: var(--accent-glow); box-shadow: 0 0 16px var(--accent-glow); }
 	.msg-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+	.msg-meta { display: flex; align-items: center; gap: 8px; }
 	.role { font-size: 10px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; }
+	.msg-time { font-size: 10px; color: var(--text-muted); font-weight: 400; }
 	.msg-actions { display: flex; gap: 4px; opacity: 0; transition: opacity var(--transition); }
 	.msg:hover .msg-actions { opacity: 1; }
 	.action-btn { background: none; border: 1px solid var(--border); color: var(--text-muted); font-size: 11px; padding: 3px 8px; border-radius: var(--radius-sm); cursor: pointer; transition: all var(--transition); }
