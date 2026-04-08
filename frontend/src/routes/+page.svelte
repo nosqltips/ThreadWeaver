@@ -315,12 +315,14 @@
 					{/each}
 				</select>
 
-				{#if selectedProvider === 'local' && localModels.length > 0}
+				{#if selectedProvider === 'local' && localModels.length > 1}
 				<select class="model-select" onchange={(e) => setLocalModel(e.currentTarget.value)}>
 					{#each localModels as m}
 						<option value={m.name} selected={m.name === providers?.local?.model}>{m.name}</option>
 					{/each}
 				</select>
+				{:else if selectedProvider === 'local' && localModels.length === 1}
+				<span class="model-label">{localModels[0].name}</span>
 				{/if}
 
 				<button class="header-icon-btn" title="Settings" onclick={() => { showSettings = !showSettings; showNotebook = false; if (showSettings) loadLocalModels(); }}
@@ -713,6 +715,7 @@
 	.send:disabled { opacity: 0.4; cursor: not-allowed; }
 
 	/* Provider/model selector */
+	.model-label { font-size: 12px; color: var(--text-muted); padding: 5px 10px; background: var(--bg-tertiary); border-radius: var(--radius-sm); border: 1px solid var(--border); }
 	.provider-select, .model-select { background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 5px 10px; font-size: 12px; cursor: pointer; transition: all var(--transition); }
 	.provider-select:hover, .model-select:hover { border-color: var(--accent); }
 	.provider-select:focus, .model-select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
