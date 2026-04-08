@@ -2,7 +2,10 @@
  * API client for the StateGraph Chat backend.
  */
 
-const API_BASE = 'http://localhost:8000/api';
+const BACKEND_URL = typeof window !== 'undefined'
+	? (window.location.port === '5173' ? 'http://localhost:8000' : `${window.location.protocol}//${window.location.hostname}:8000`)
+	: 'http://localhost:8000';
+const API_BASE = `${BACKEND_URL}/api`;
 
 export interface ImageData {
 	data: string;  // base64
