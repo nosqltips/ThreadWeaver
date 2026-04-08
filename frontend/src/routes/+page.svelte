@@ -236,6 +236,21 @@
 		return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
 	}
 
+	function formatTime(ts: number): string {
+		const d = new Date(ts * 1000);
+		const now = new Date();
+		const diff = now.getTime() - d.getTime();
+		const mins = Math.floor(diff / 60000);
+		const hours = Math.floor(diff / 3600000);
+		const days = Math.floor(diff / 86400000);
+
+		if (mins < 1) return 'just now';
+		if (mins < 60) return `${mins}m ago`;
+		if (hours < 24) return `${hours}h ago`;
+		if (days < 7) return `${days}d ago`;
+		return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+	}
+
 	async function doSearch() {
 		if (!searchQuery.trim()) return;
 		searchResults = await searchConversations(searchQuery);
@@ -325,7 +340,7 @@
 						onclick={() => selectConversation(node.id)}>
 						<span class="tree-icon">{depth === 0 ? '●' : '⑂'}</span>
 						<span class="tree-label">{node.title}</span>
-						<span class="tree-count">{node.message_count}</span>
+						<span class="tree-count">{node.message_count} msgs</span>
 					</button>
 					{#if node.children}
 						{#each node.children as child}
@@ -366,7 +381,9 @@
 				<button class="conv-item" class:active={conv.id === currentConvId}
 					onclick={() => selectConversation(conv.id)}>
 					<span class="conv-title">{conv.title}</span>
-					<span class="conv-meta">{conv.message_count} msgs
+					<span class="conv-meta">
+						<span>{conv.message_count} msgs</span>
+						<span class="conv-time">{formatTime(conv.created_at)}</span>
 						{#if conv.parent_id}<span class="badge">branch</span>{/if}
 						{#if conv.project_id}<span class="badge project-badge">📁</span>{/if}
 					</span>
@@ -760,7 +777,8 @@
 	.conv-item:hover { background: var(--bg-hover); }
 	.conv-item.active { background: var(--accent-subtle); border-left: 2px solid var(--accent); }
 	.conv-title { display: block; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-	.conv-meta { display: block; font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+	.conv-meta { display: flex; gap: 6px; align-items: center; font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+	.conv-time { color: var(--text-muted); opacity: 0.7; }
 	.badge { background: var(--accent-subtle); color: var(--accent); padding: 1px 6px; border-radius: 3px; font-size: 10px; margin-left: 4px; font-weight: 500; }
 
 	/* Chat area */
