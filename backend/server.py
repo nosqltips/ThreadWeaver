@@ -12,7 +12,12 @@ import json
 import os
 from typing import Optional
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not required if env vars are set directly (e.g., systemd EnvironmentFile)
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -22,8 +27,6 @@ from config import config
 from llm import stream_response
 from state import ChatStateManager
 from tools import mcp_client, get_tool_definitions
-
-load_dotenv()
 
 app = FastAPI(
     title="ThreadWeaver",
