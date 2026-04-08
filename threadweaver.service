@@ -1,0 +1,25 @@
+# ThreadWeaver systemd service
+# Copy to /etc/systemd/system/threadweaver.service
+# Then: sudo systemctl enable threadweaver && sudo systemctl start threadweaver
+#
+# Adjust paths and User as needed.
+
+[Unit]
+Description=ThreadWeaver AI Chat
+After=network.target
+
+[Service]
+Type=forking
+User=picocluster
+WorkingDirectory=/opt/threadweaver
+
+ExecStart=/bin/bash -c '\
+  cd /opt/threadweaver/backend && /opt/threadweaver/venv/bin/uvicorn server:app --host 0.0.0.0 --port 8000 & \
+  cd /opt/threadweaver/frontend && npx vite --host 0.0.0.0 --port 5173 &'
+
+Restart=always
+RestartSec=5
+EnvironmentFile=/opt/threadweaver/backend/.env
+
+[Install]
+WantedBy=multi-user.target

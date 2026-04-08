@@ -240,13 +240,14 @@ def set_default_provider(req: DefaultProviderUpdate):
 
 @app.get("/api/models/local")
 async def list_local_models():
-    """List available models from the local Ollama instance."""
+    """List available models from Ollama or any OpenAI-compatible server (llama-server, vLLM, etc.)."""
     import httpx
     base_url = config.get_base_url("local") or "http://localhost:11434"
-    # Strip /v1 if present for the Ollama native API
     ollama_url = base_url.replace("/v1", "")
-    try:
-        async with httpx.AsyncClient(timeout=5) as client:
+
+    async with httpx.AsyncClient(timeout=5) as client:
+        # Try Ollama native API first (/api/tags)
+        try:
             resp = await client.get(f"{ollama_url}/api/tags")
             if resp.status_code == 200:
                 data = resp.json()
@@ -258,10 +259,29 @@ async def list_local_models():
                     }
                     for m in data.get("models", [])
                 ]
-                return {"models": models, "source": ollama_url}
-            return {"models": [], "error": f"Status {resp.status_code}"}
-    except Exception as e:
-        return {"models": [], "error": str(e)}
+                return {"models": models, "source": ollama_url, "server_type": "ollama"}
+        except Exception:
+            pass
+
+        # Fallback: OpenAI-compatible /v1/models (llama-server, vLLM, LM Studio)
+        try:
+            v1_url = base_url if "/v1" in base_url else f"{base_url}/v1"
+            resp = await client.get(f"{v1_url}/models")
+            if resp.status_code == 200:
+                data = resp.json()
+                models = [
+                    {
+                        "name": m.get("id", m.get("model", "unknown")),
+                        "size": 0,
+                        "modified": "",
+                    }
+                    for m in data.get("data", [])
+                ]
+                return {"models": models, "source": v1_url, "server_type": "openai-compatible"}
+        except Exception:
+            pass
+
+    return {"models": [], "error": "No model server found. Tried Ollama and OpenAI-compatible endpoints."}
 
 
 # ─── MCP Server Management ────────────────────────────────────────
