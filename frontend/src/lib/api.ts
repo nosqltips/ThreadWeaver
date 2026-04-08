@@ -172,3 +172,48 @@ export async function attachFile(convId: string, path: string): Promise<any> {
 	});
 	return res.json();
 }
+
+// Delete / Archive
+export async function deleteConversation(convId: string): Promise<any> {
+	const res = await fetch(`${API_BASE}/conversations/${convId}`, { method: 'DELETE' });
+	return res.json();
+}
+
+export async function archiveConversation(convId: string): Promise<any> {
+	const res = await fetch(`${API_BASE}/conversations/${convId}/archive`, { method: 'POST' });
+	return res.json();
+}
+
+export async function unarchiveConversation(convId: string): Promise<any> {
+	const res = await fetch(`${API_BASE}/conversations/${convId}/unarchive`, { method: 'POST' });
+	return res.json();
+}
+
+// Projects
+export async function createProject(name: string, description = '', systemPrompt = ''): Promise<any> {
+	const res = await fetch(`${API_BASE}/projects`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ name, description, system_prompt: systemPrompt }),
+	});
+	return res.json();
+}
+
+export async function listProjects(): Promise<any[]> {
+	const res = await fetch(`${API_BASE}/projects`);
+	return res.json();
+}
+
+export async function getProject(projectId: string): Promise<any> {
+	const res = await fetch(`${API_BASE}/projects/${projectId}`);
+	return res.json();
+}
+
+export async function addConversationToProject(convId: string, projectId: string): Promise<any> {
+	const res = await fetch(`${API_BASE}/conversations/${convId}/project`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ project_id: projectId }),
+	});
+	return res.json();
+}

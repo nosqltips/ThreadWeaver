@@ -10,6 +10,11 @@
 		getConversationTree,
 		getSettings,
 		listTools,
+		deleteConversation,
+		archiveConversation,
+		createProject,
+		listProjects,
+		addConversationToProject,
 		type Message,
 		type ConversationSummary,
 		type ImageData,
@@ -33,6 +38,51 @@
 	let convTree = $state<any>(null);
 	let expandedNote = $state<number | null>(null);
 	let noteComments = $state<Record<number, string[]>>({});
+	let projects = $state<any[]>([]);
+	let selectedProjectId = $state<string | null>(null);
+	let showArchived = $state(false);
+
+	async function loadProjects() {
+		try { projects = await listProjects(); } catch {}
+	}
+
+	async function deleteChat(convId: string) {
+		if (!confirm('Delete this conversation?')) return;
+		await deleteConversation(convId);
+		if (currentConvId === convId) {
+			currentConvId = null;
+			messages = [];
+		}
+		await loadConversations();
+	}
+
+	async function archiveChat(convId: string) {
+		await archiveConversation(convId);
+		if (currentConvId === convId) {
+			currentConvId = null;
+			messages = [];
+		}
+		await loadConversations();
+	}
+
+	async function newProject() {
+		const name = prompt('Project name:');
+		if (!name) return;
+		const desc = prompt('Description (optional):') || '';
+		await createProject(name, desc);
+		await loadProjects();
+	}
+
+	async function moveToProject(convId: string) {
+		if (projects.length === 0) {
+			alert('Create a project first.');
+			return;
+		}
+		const projectId = prompt('Project ID (' + projects.map(p => p.id + ': ' + p.name).join(', ') + '):');
+		if (!projectId) return;
+		await addConversationToProject(convId, projectId);
+		await loadConversations();
+	}
 
 	// Provider/model selection
 	let selectedProvider = $state('anthropic');
@@ -238,6 +288,7 @@
 		loadSettings();
 		loadLocalModels();
 		loadToolCount();
+		loadProjects();
 	});
 </script>
 
@@ -287,16 +338,50 @@
 		</div>
 		{/if}
 
-		<div class="conv-list">
-			{#each conversations as conv}
-			<button class="conv-item" class:active={conv.id === currentConvId}
-				onclick={() => selectConversation(conv.id)}>
-				<span class="conv-title">{conv.title}</span>
-				<span class="conv-meta">{conv.message_count} msgs
-					{#if conv.parent_id}<span class="badge">branch</span>{/if}
-				</span>
+		<!-- Projects -->
+		{#if projects.length > 0}
+		<div class="projects-section">
+			<div class="section-header">
+				<span>Projects</span>
+				<button class="section-add" onclick={newProject}>+</button>
+			</div>
+			{#each projects as proj}
+			<button class="project-item" class:active={selectedProjectId === proj.id}
+				onclick={() => selectedProjectId = selectedProjectId === proj.id ? null : proj.id}>
+				<span class="project-name">📁 {proj.name}</span>
+				<span class="project-count">{proj.chat_count}</span>
 			</button>
 			{/each}
+		</div>
+		{:else}
+		<div class="section-header" style="padding: 4px 14px;">
+			<span></span>
+			<button class="section-add" title="New Project" onclick={newProject}>📁+</button>
+		</div>
+		{/if}
+
+		<div class="conv-list">
+			{#each conversations.filter(c => !selectedProjectId || c.project_id === selectedProjectId) as conv}
+			<div class="conv-item-wrapper">
+				<button class="conv-item" class:active={conv.id === currentConvId}
+					onclick={() => selectConversation(conv.id)}>
+					<span class="conv-title">{conv.title}</span>
+					<span class="conv-meta">{conv.message_count} msgs
+						{#if conv.parent_id}<span class="badge">branch</span>{/if}
+						{#if conv.project_id}<span class="badge project-badge">📁</span>{/if}
+					</span>
+				</button>
+				<div class="conv-actions">
+					<button class="conv-action" title="Move to project" onclick={() => moveToProject(conv.id)}>📁</button>
+					<button class="conv-action" title="Archive" onclick={() => archiveChat(conv.id)}>📥</button>
+					<button class="conv-action delete" title="Delete" onclick={() => deleteChat(conv.id)}>✕</button>
+				</div>
+			</div>
+			{/each}
+
+			{#if conversations.length === 0}
+			<p style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px;">No conversations yet</p>
+			{/if}
 		</div>
 	</aside>
 	{/if}
@@ -600,6 +685,27 @@
 	.tree-icon { font-size: 10px; color: var(--accent); }
 	.tree-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 	.tree-count { font-size: 10px; color: var(--text-muted); }
+
+	/* Projects section */
+	.projects-section { padding: 4px 6px; border-bottom: 1px solid var(--border); }
+	.section-header { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; font-size: 10px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 1px; font-weight: 600; }
+	.section-add { background: none; border: 1px solid var(--border); color: var(--text-muted); padding: 2px 6px; border-radius: var(--radius-sm); cursor: pointer; font-size: 11px; transition: all var(--transition); }
+	.section-add:hover { color: var(--accent); border-color: var(--accent); }
+	.project-item { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 6px 10px; background: none; border: none; color: var(--text-secondary); cursor: pointer; border-radius: var(--radius-sm); font-size: 12px; text-align: left; transition: all var(--transition); }
+	.project-item:hover { background: var(--bg-hover); }
+	.project-item.active { background: var(--accent-subtle); color: var(--accent); }
+	.project-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.project-count { font-size: 10px; color: var(--text-muted); background: var(--bg-primary); padding: 1px 5px; border-radius: 8px; }
+	.project-badge { font-size: 9px; }
+
+	/* Conversation item with actions */
+	.conv-item-wrapper { position: relative; display: flex; align-items: center; }
+	.conv-item-wrapper .conv-item { flex: 1; }
+	.conv-actions { display: flex; gap: 2px; opacity: 0; transition: opacity var(--transition); padding-right: 4px; }
+	.conv-item-wrapper:hover .conv-actions { opacity: 1; }
+	.conv-action { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 11px; padding: 2px 4px; border-radius: 3px; transition: all var(--transition); }
+	.conv-action:hover { color: var(--accent); background: var(--accent-subtle); }
+	.conv-action.delete:hover { color: var(--error); background: rgba(255,68,68,0.1); }
 
 	.conv-list { flex: 1; overflow-y: auto; padding: 6px; }
 	.conv-item { display: block; width: 100%; text-align: left; padding: 9px 10px; background: none; border: none; color: var(--text-primary); cursor: pointer; border-radius: var(--radius); margin-bottom: 2px; transition: all var(--transition); }

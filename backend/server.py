@@ -69,6 +69,14 @@ class HighlightRequest(BaseModel):
     end_index: int
     tag: Optional[str] = None
 
+class CreateProjectRequest(BaseModel):
+    name: str
+    description: str = ""
+    system_prompt: str = ""
+
+class AddToProjectRequest(BaseModel):
+    project_id: str
+
 class SearchRequest(BaseModel):
     query: str
 
@@ -186,6 +194,68 @@ def create_highlight(conv_id: str, req: HighlightRequest):
         return highlight
     except ValueError as e:
         raise HTTPException(400, str(e))
+
+
+# ─── Delete / Archive ────────────────────────────────────────────
+
+@app.delete("/api/conversations/{conv_id}")
+def delete_conversation(conv_id: str):
+    if state.delete_conversation(conv_id):
+        return {"status": "deleted", "id": conv_id}
+    raise HTTPException(404, "Conversation not found")
+
+@app.post("/api/conversations/{conv_id}/archive")
+def archive_conversation(conv_id: str):
+    if state.archive_conversation(conv_id):
+        return {"status": "archived", "id": conv_id}
+    raise HTTPException(404, "Conversation not found")
+
+@app.post("/api/conversations/{conv_id}/unarchive")
+def unarchive_conversation(conv_id: str):
+    if state.unarchive_conversation(conv_id):
+        return {"status": "unarchived", "id": conv_id}
+    raise HTTPException(404, "Conversation not found")
+
+@app.get("/api/conversations/archived")
+def list_archived():
+    return state.list_archived()
+
+
+# ─── Projects ────────────────────────────────────────────────────
+
+@app.post("/api/projects")
+def create_project(req: CreateProjectRequest):
+    project = state.create_project(req.name, req.description, req.system_prompt)
+    return {"id": project.id, "name": project.name}
+
+@app.get("/api/projects")
+def list_projects():
+    return state.list_projects()
+
+@app.get("/api/projects/{project_id}")
+def get_project(project_id: str):
+    project = state.get_project(project_id)
+    if not project:
+        raise HTTPException(404, "Project not found")
+    return {
+        "id": project.id, "name": project.name,
+        "description": project.description,
+        "system_prompt": project.system_prompt,
+        "tags": project.tags, "created_at": project.created_at,
+        "conversations": state.get_project_conversations(project_id),
+    }
+
+@app.delete("/api/projects/{project_id}")
+def delete_project(project_id: str):
+    if state.delete_project(project_id):
+        return {"status": "deleted", "id": project_id}
+    raise HTTPException(404, "Project not found")
+
+@app.post("/api/conversations/{conv_id}/project")
+def add_to_project(conv_id: str, req: AddToProjectRequest):
+    if state.add_conversation_to_project(conv_id, req.project_id):
+        return {"status": "ok"}
+    raise HTTPException(400, "Invalid conversation or project")
 
 
 # ─── Provenance (AgentStateGraph) ─────────────────────────────────

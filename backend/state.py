@@ -38,6 +38,18 @@ class Conversation:
     parent_message_index: Optional[int] = None
     created_at: float = field(default_factory=time.time)
     tags: list[str] = field(default_factory=list)
+    archived: bool = False
+    project_id: Optional[str] = None
+
+
+@dataclass
+class Project:
+    id: str
+    name: str
+    description: str = ""
+    system_prompt: str = ""  # shared context for all chats in the project
+    created_at: float = field(default_factory=time.time)
+    tags: list[str] = field(default_factory=list)
 
 
 class ChatStateManager:
@@ -45,6 +57,7 @@ class ChatStateManager:
 
     def __init__(self, db_path: str = None):
         self.conversations: dict[str, Conversation] = {}
+        self.projects: dict[str, Project] = {}
         self._counter = 0
 
         # Initialize AgentStateGraph if available
@@ -183,11 +196,13 @@ class ChatStateManager:
 
         return new_conv
 
-    def list_conversations(self) -> list[dict]:
+    def list_conversations(self, include_archived: bool = False) -> list[dict]:
         result = []
         for conv in sorted(
             self.conversations.values(), key=lambda c: c.created_at, reverse=True
         ):
+            if conv.archived and not include_archived:
+                continue
             result.append({
                 "id": conv.id,
                 "title": conv.title,
@@ -196,6 +211,8 @@ class ChatStateManager:
                 "parent_id": conv.parent_id,
                 "parent_message_index": conv.parent_message_index,
                 "tags": conv.tags,
+                "project_id": conv.project_id,
+                "archived": conv.archived,
                 "created_at": conv.created_at,
             })
         return result
@@ -315,6 +332,90 @@ class ChatStateManager:
             return log
         except Exception:
             return []
+
+    # ─── Delete / Archive ────────────────────────────────────────
+
+    def delete_conversation(self, conv_id: str) -> bool:
+        if conv_id in self.conversations:
+            del self.conversations[conv_id]
+            return True
+        return False
+
+    def archive_conversation(self, conv_id: str) -> bool:
+        conv = self.conversations.get(conv_id)
+        if not conv:
+            return False
+        conv.archived = True
+        return True
+
+    def unarchive_conversation(self, conv_id: str) -> bool:
+        conv = self.conversations.get(conv_id)
+        if not conv:
+            return False
+        conv.archived = False
+        return True
+
+    def list_archived(self) -> list[dict]:
+        return [
+            {
+                "id": c.id, "title": c.title, "message_count": len(c.messages),
+                "created_at": c.created_at, "tags": c.tags, "project_id": c.project_id,
+            }
+            for c in sorted(self.conversations.values(), key=lambda c: c.created_at, reverse=True)
+            if c.archived
+        ]
+
+    # ─── Projects ────────────────────────────────────────────────
+
+    def create_project(self, name: str, description: str = "", system_prompt: str = "") -> Project:
+        project_id = f"proj-{self._counter + 1:04d}"
+        self._counter += 1
+        project = Project(
+            id=project_id, name=name, description=description, system_prompt=system_prompt,
+        )
+        self.projects[project_id] = project
+        return project
+
+    def get_project(self, project_id: str) -> Optional[Project]:
+        return self.projects.get(project_id)
+
+    def list_projects(self) -> list[dict]:
+        result = []
+        for p in sorted(self.projects.values(), key=lambda p: p.created_at, reverse=True):
+            chat_count = sum(1 for c in self.conversations.values() if c.project_id == p.id and not c.archived)
+            result.append({
+                "id": p.id, "name": p.name, "description": p.description,
+                "system_prompt": p.system_prompt[:100] if p.system_prompt else "",
+                "chat_count": chat_count, "tags": p.tags, "created_at": p.created_at,
+            })
+        return result
+
+    def delete_project(self, project_id: str) -> bool:
+        if project_id in self.projects:
+            # Unassign chats
+            for c in self.conversations.values():
+                if c.project_id == project_id:
+                    c.project_id = None
+            del self.projects[project_id]
+            return True
+        return False
+
+    def add_conversation_to_project(self, conv_id: str, project_id: str) -> bool:
+        conv = self.conversations.get(conv_id)
+        if not conv or project_id not in self.projects:
+            return False
+        conv.project_id = project_id
+        return True
+
+    def get_project_conversations(self, project_id: str) -> list[dict]:
+        return [
+            {
+                "id": c.id, "title": c.title, "message_count": len(c.messages),
+                "created_at": c.created_at, "tags": c.tags,
+            }
+            for c in sorted(self.conversations.values(), key=lambda c: c.created_at, reverse=True)
+            if c.project_id == project_id and not c.archived
+        ]
 
 
 def _action_to_category(action: str) -> str:
