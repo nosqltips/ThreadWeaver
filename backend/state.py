@@ -321,17 +321,80 @@ class ChatStateManager:
         }
 
     def get_provenance(self, conv_id: str) -> list[dict]:
-        """Get AgentStateGraph provenance for a conversation."""
-        if not self.sg:
+        """Get provenance trail for a conversation.
+        Uses AgentStateGraph if available, otherwise builds from conversation history."""
+        conv = self.conversations.get(conv_id)
+        if not conv:
             return []
-        try:
-            conv = self.conversations.get(conv_id)
-            if not conv:
-                return []
-            log = self.sg.log(ref=conv.branch, limit=20)
-            return log
-        except Exception:
-            return []
+
+        # Try AgentStateGraph first
+        if self.sg:
+            try:
+                log = self.sg.log(ref=conv.branch, limit=20)
+                if log:
+                    return log
+            except Exception:
+                pass
+
+        # Fallback: build provenance from conversation history
+        entries = []
+
+        # Conversation creation
+        entries.append({
+            "id": f"prov-{conv.id}-create",
+            "agent": "threadweaver",
+            "timestamp": _format_ts(conv.created_at),
+            "intent": {
+                "category": "Checkpoint",
+                "description": f"Conversation created: {conv.title}",
+                "tags": conv.tags,
+            },
+            "reasoning": None,
+            "confidence": None,
+        })
+
+        # Branch event
+        if conv.parent_id:
+            entries.append({
+                "id": f"prov-{conv.id}-branch",
+                "agent": "threadweaver",
+                "timestamp": _format_ts(conv.created_at),
+                "intent": {
+                    "category": "Explore",
+                    "description": f"Branched from conversation {conv.parent_id} at message {conv.parent_message_index}",
+                    "tags": ["branch"],
+                },
+                "reasoning": "User chose to explore an alternative conversation path",
+                "confidence": None,
+            })
+
+        # Each message exchange
+        for i, msg in enumerate(conv.messages):
+            if msg.role == "user":
+                category = "Explore"
+                desc = f"User message: {msg.content[:80]}{'...' if len(msg.content) > 80 else ''}"
+                reasoning = None
+                if msg.images:
+                    desc += f" (+{len(msg.images)} image{'s' if len(msg.images) > 1 else ''})"
+            else:
+                category = "Refine"
+                desc = f"Assistant response: {msg.content[:80]}{'...' if len(msg.content) > 80 else ''}"
+                reasoning = "AI generated response based on conversation context"
+
+            entries.append({
+                "id": f"prov-{conv.id}-msg-{i}",
+                "agent": "threadweaver" if msg.role == "assistant" else "user",
+                "timestamp": _format_ts(msg.timestamp),
+                "intent": {
+                    "category": category,
+                    "description": desc,
+                    "tags": [],
+                },
+                "reasoning": reasoning,
+                "confidence": 0.9 if msg.role == "assistant" else None,
+            })
+
+        return entries
 
     # ─── Delete / Archive ────────────────────────────────────────
 
@@ -416,6 +479,12 @@ class ChatStateManager:
             for c in sorted(self.conversations.values(), key=lambda c: c.created_at, reverse=True)
             if c.project_id == project_id and not c.archived
         ]
+
+
+def _format_ts(ts: float) -> str:
+    """Format a Unix timestamp to ISO string."""
+    from datetime import datetime, timezone
+    return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
 
 
 def _action_to_category(action: str) -> str:

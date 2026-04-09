@@ -228,6 +228,7 @@
 
 		isStreaming = false;
 		await loadConversations();
+		if (showProvenance) loadProvenance();
 	}
 
 	async function branch(messageIndex: number) {
@@ -718,8 +719,8 @@
 				{#if provenanceData.length === 0}
 				<div class="provenance-empty">
 					<div class="prov-icon">📊</div>
-					<p>No provenance data available.</p>
-					<p class="prov-hint">When AgentStateGraph is connected, every message exchange is recorded as a versioned commit with intent, reasoning, and audit trail.</p>
+					<p>No provenance data yet.</p>
+					<p class="prov-hint">Start a conversation to see the provenance trail. Every message is tracked with intent, agent, and timestamps.</p>
 					<a href="https://agentstategraph.dev" target="_blank" class="prov-link">Learn about AgentStateGraph</a>
 				</div>
 				{:else}
