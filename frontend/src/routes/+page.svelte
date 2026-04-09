@@ -47,6 +47,8 @@
 	let showProvenance = $state(false);
 	let provenanceData = $state<any[]>([]);
 	let mcpServers = $state<any>({});
+	let showTools = $state(false);
+	let toolsList = $state<any[]>([]);
 	let mcpName = $state('');
 	let mcpCommand = $state('');
 	let mcpArgs = $state('');
@@ -69,6 +71,10 @@
 		} catch (e) {
 			alert(`Failed to connect: ${e}`);
 		}
+	}
+
+	async function loadTools() {
+		try { toolsList = await listTools(); } catch {}
 	}
 
 	async function disconnectMCPServer(name: string) {
@@ -485,7 +491,9 @@
 					{#if notebooks.length > 0}<span class="icon-badge">{notebooks.length}</span>{/if}
 				</button>
 				{#if toolCount > 0}
-				<button class="header-icon-btn" title="{toolCount} tools available">
+				<button class="header-icon-btn" title="{toolCount} tools available"
+					class:active={showTools}
+					onclick={() => { showTools = !showTools; showSettings = false; showNotebook = false; showProvenance = false; if (showTools) loadTools(); }}>
 					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
 					<span class="icon-badge">{toolCount}</span>
 				</button>
@@ -724,6 +732,34 @@
 						 · <a href="https://mcp.so" target="_blank">mcp.so directory</a>
 					</div>
 				</div>
+
+			<!-- Tools panel -->
+			{#if showTools}
+			<div class="tools-panel">
+				<div class="tools-header">
+					<h3>Tools</h3>
+					<span class="tools-count">{toolsList.length} available</span>
+					<button class="close-btn" onclick={() => showTools = false}>✕</button>
+				</div>
+
+				{#if toolsList.length === 0}
+				<p class="tools-empty">No tools available. Connect an MCP server in Settings or the built-in tools will appear automatically.</p>
+				{:else}
+				<div class="tools-list">
+					{#each toolsList as tool}
+					<div class="tool-item">
+						<div class="tool-name">{tool.name}</div>
+						<div class="tool-desc">{tool.description?.slice(0, 120)}{tool.description?.length > 120 ? '...' : ''}</div>
+					</div>
+					{/each}
+				</div>
+				{/if}
+
+				<div class="setting-note" style="margin-top: 12px;">
+					The AI automatically uses these tools when relevant. You can also ask it to use a specific tool by name.
+				</div>
+			</div>
+			{/if}
 
 			<!-- Provenance panel (AgentStateGraph) -->
 			{#if showProvenance}
@@ -979,6 +1015,18 @@
 	.msg-images { margin-bottom: 8px; }
 	.attached-image { max-width: 300px; max-height: 200px; border-radius: var(--radius); border: 1px solid var(--border); transition: transform var(--transition); }
 	.attached-image:hover { transform: scale(1.02); }
+
+	/* Tools panel */
+	.tools-panel { width: 300px; background: var(--bg-secondary); border-left: 1px solid var(--border); padding: 14px; overflow-y: auto; flex-shrink: 0; animation: slideInRight 0.3s ease; }
+	.tools-header { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+	.tools-header h3 { margin: 0; font-size: 14px; color: var(--accent); font-weight: 600; flex: 1; }
+	.tools-count { font-size: 10px; color: var(--text-muted); background: var(--bg-tertiary); padding: 2px 6px; border-radius: 8px; }
+	.tools-empty { font-size: 13px; color: var(--text-muted); padding: 20px; text-align: center; }
+	.tools-list { display: flex; flex-direction: column; gap: 6px; }
+	.tool-item { padding: 8px 10px; background: var(--bg-tertiary); border-radius: var(--radius); border: 1px solid var(--border); transition: all var(--transition); }
+	.tool-item:hover { border-color: var(--accent); }
+	.tool-name { font-size: 12px; font-weight: 600; color: var(--accent); font-family: monospace; margin-bottom: 3px; }
+	.tool-desc { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
 
 	/* Provenance panel */
 	.provenance-panel { width: 320px; background: var(--bg-secondary); border-left: 1px solid var(--border); padding: 14px; overflow-y: auto; flex-shrink: 0; animation: slideInRight 0.3s ease; }
