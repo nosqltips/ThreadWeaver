@@ -44,8 +44,8 @@ threadweaver/
 ## Architecture
 
 ```
-Browser (SvelteKit)
-    ↓ HTTP/SSE
+Browser (SvelteKit + adapter-node)
+    ↓ HTTP/SSE (proxied via Vite /api → :8000)
 FastAPI Backend
     ├── LLM Connectors (Anthropic, OpenAI, Gemini, Grok, Ollama)
     ├── Tool Engine (built-in + MCP servers)
