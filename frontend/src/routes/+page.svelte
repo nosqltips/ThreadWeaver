@@ -10,6 +10,8 @@
 		getConversationTree,
 		getSettings,
 		listTools,
+		connectMCP,
+		listMCPServers,
 		deleteConversation,
 		archiveConversation,
 		createProject,
@@ -44,6 +46,36 @@
 	let showArchived = $state(false);
 	let showProvenance = $state(false);
 	let provenanceData = $state<any[]>([]);
+	let mcpServers = $state<any>({});
+	let mcpName = $state('');
+	let mcpCommand = $state('');
+	let mcpArgs = $state('');
+
+	async function loadMCPServers() {
+		try { mcpServers = await listMCPServers(); } catch {}
+	}
+
+	async function connectMCPServer() {
+		if (!mcpName.trim() || !mcpCommand.trim()) return;
+		try {
+			const result = await connectMCP(mcpName.trim(), mcpCommand.trim(),
+				mcpArgs.trim() ? mcpArgs.trim().split(' ') : []);
+			mcpName = '';
+			mcpCommand = '';
+			mcpArgs = '';
+			await loadMCPServers();
+			await loadToolCount();
+			alert(`Connected! ${result.tools} tools discovered: ${result.tool_names?.join(', ')}`);
+		} catch (e) {
+			alert(`Failed to connect: ${e}`);
+		}
+	}
+
+	async function disconnectMCPServer(name: string) {
+		await fetch(`${API_BASE}/mcp/${name}`, { method: 'DELETE' });
+		await loadMCPServers();
+		await loadToolCount();
+	}
 
 	async function loadProvenance() {
 		if (!currentConvId) { provenanceData = []; return; }
@@ -314,6 +346,7 @@
 		loadLocalModels();
 		loadToolCount();
 		loadProjects();
+		loadMCPServers();
 	});
 </script>
 
@@ -645,6 +678,34 @@
 			</div>
 			{/if}
 
+						<!-- MCP Servers -->
+				<div class="setting-group">
+					<div class="setting-label">MCP Servers</div>
+					{#if Object.keys(mcpServers).length > 0}
+					<div class="mcp-list">
+						{#each Object.entries(mcpServers) as [name, server]}
+						<div class="mcp-server">
+							<div class="mcp-server-info">
+								<span class="mcp-name">{name}</span>
+								<span class="mcp-tools">{server.tools} tools</span>
+							</div>
+							<button class="mcp-disconnect" onclick={() => disconnectMCPServer(name)}>x</button>
+						</div>
+						{/each}
+					</div>
+					{/if}
+					<div class="mcp-connect-form">
+						<input type="text" placeholder="Server name" bind:value={mcpName} />
+						<input type="text" placeholder="Command path" bind:value={mcpCommand} />
+						<input type="text" placeholder="Args (optional)" bind:value={mcpArgs} />
+						<button class="mcp-connect-btn" onclick={connectMCPServer}
+							disabled={!mcpName.trim() || !mcpCommand.trim()}>Connect</button>
+					</div>
+					<div class="setting-note">
+						Connect <a href="https://modelcontextprotocol.io" target="_blank">MCP servers</a> to give the AI external tools.
+					</div>
+				</div>
+
 			<!-- Provenance panel (AgentStateGraph) -->
 			{#if showProvenance}
 			<div class="provenance-panel">
@@ -931,6 +992,21 @@
 	.prov-confidence { font-size: 10px; color: var(--success); font-weight: 600; }
 	.prov-tags { font-size: 10px; color: var(--text-muted); }
 	.prov-id { font-size: 9px; color: var(--text-muted); opacity: 0.5; margin-top: 4px; font-family: monospace; }
+
+	/* MCP servers in settings */
+	.mcp-list { margin-bottom: 8px; }
+	.mcp-server { display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; background: var(--bg-primary); border-radius: var(--radius-sm); margin-bottom: 4px; }
+	.mcp-server-info { display: flex; gap: 8px; align-items: center; }
+	.mcp-name { font-size: 12px; color: var(--text-primary); font-weight: 500; }
+	.mcp-tools { font-size: 10px; color: var(--accent); background: var(--accent-subtle); padding: 1px 5px; border-radius: 3px; }
+	.mcp-disconnect { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 12px; padding: 2px 6px; border-radius: 3px; transition: all var(--transition); }
+	.mcp-disconnect:hover { color: var(--error); background: rgba(255,68,68,0.1); }
+	.mcp-connect-form { display: flex; flex-direction: column; gap: 4px; }
+	.mcp-connect-form input { padding: 6px 9px; background: var(--bg-primary); border: 1px solid transparent; border-radius: var(--radius-sm); color: var(--text-primary); font-size: 12px; transition: all var(--transition); }
+	.mcp-connect-form input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
+	.mcp-connect-btn { padding: 6px 12px; background: var(--accent); color: #fff; border: none; border-radius: var(--radius-sm); cursor: pointer; font-size: 12px; font-weight: 500; transition: all var(--transition); margin-top: 4px; }
+	.mcp-connect-btn:hover:not(:disabled) { filter: brightness(1.15); }
+	.mcp-connect-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 	/* Side panels with animation */
 	.notebook, .settings-panel { width: 300px; background: var(--bg-secondary); border-left: 1px solid var(--border); padding: 14px; overflow-y: auto; flex-shrink: 0; animation: slideInRight 0.3s ease; }
