@@ -487,12 +487,6 @@
 					onclick={() => { const v = !showSettings; closeAllPanels(); showSettings = v; if (v) loadLocalModels(); }}>
 					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
 				</button>
-				<button class="header-icon-btn" title="MCP Servers"
-					class:active={showMCP}
-					onclick={() => { const v = !showMCP; closeAllPanels(); showMCP = v; if (v) loadMCPServers(); }}>
-					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/><line x1="1" y1="16" x2="23" y2="16"/><circle cx="5" cy="7" r="1" fill="currentColor"/><circle cx="5" cy="13" r="1" fill="currentColor"/><circle cx="5" cy="19" r="1" fill="currentColor"/></svg>
-					{#if Object.keys(mcpServers).length > 0}<span class="icon-badge">{Object.keys(mcpServers).length}</span>{/if}
-				</button>
 				<button class="header-icon-btn" title="Provenance"
 					class:active={showProvenance}
 					onclick={() => { const v = !showProvenance; closeAllPanels(); showProvenance = v; if (v) loadProvenance(); }}>
@@ -503,6 +497,13 @@
 					onclick={() => { const v = !showNotebook; closeAllPanels(); showNotebook = v; }}>
 					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h6"/><path d="M8 11h8"/></svg>
 					{#if notebooks.length > 0}<span class="icon-badge">{notebooks.length}</span>{/if}
+				</button>
+				<span class="header-separator"></span>
+				<button class="header-icon-btn" title="MCP Servers"
+					class:active={showMCP}
+					onclick={() => { const v = !showMCP; closeAllPanels(); showMCP = v; if (v) loadMCPServers(); }}>
+					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/><line x1="1" y1="16" x2="23" y2="16"/><circle cx="5" cy="7" r="1" fill="currentColor"/><circle cx="5" cy="13" r="1" fill="currentColor"/><circle cx="5" cy="19" r="1" fill="currentColor"/></svg>
+					{#if Object.keys(mcpServers).length > 0}<span class="icon-badge">{Object.keys(mcpServers).length}</span>{/if}
 				</button>
 				{#if toolCount > 0}
 				<button class="header-icon-btn" title="{toolCount} tools available"
@@ -997,6 +998,7 @@
 	.toggle { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px 8px; transition: color var(--transition); }
 	.toggle:hover { color: var(--accent); }
 	.header-actions { display: flex; gap: 6px; align-items: center; }
+	.header-separator { width: 1px; height: 20px; background: var(--border); margin: 0 2px; }
 	.header-icon-btn { background: none; border: 1px solid var(--border); color: var(--text-muted); padding: 6px 8px; border-radius: var(--radius-sm); cursor: pointer; transition: all var(--transition); display: flex; align-items: center; justify-content: center; position: relative; min-width: 36px; min-height: 36px; }
 	.header-icon-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-subtle); }
 	.header-icon-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-subtle); }
