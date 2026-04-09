@@ -48,6 +48,7 @@
 	let provenanceData = $state<any[]>([]);
 	let mcpServers = $state<any>({});
 	let showTools = $state(false);
+	let showMCP = $state(false);
 	let toolsList = $state<any[]>([]);
 	let mcpName = $state('');
 	let mcpCommand = $state('');
@@ -71,6 +72,10 @@
 		} catch (e) {
 			alert(`Failed to connect: ${e}`);
 		}
+	}
+
+	function closeAllPanels() {
+		showSettings = false; showProvenance = false; showNotebook = false; showTools = false; showMCP = false;
 	}
 
 	async function loadTools() {
@@ -477,23 +482,32 @@
 				<span class="model-label">{localModels[0].name}</span>
 				{/if}
 
-				<button class="header-icon-btn" title="Settings" onclick={() => { showSettings = !showSettings; showNotebook = false; showProvenance = false; showTools = false; if (showSettings) loadLocalModels(); }}
-					class:active={showSettings}>
+				<button class="header-icon-btn" title="Settings"
+					class:active={showSettings}
+					onclick={() => { const v = !showSettings; closeAllPanels(); showSettings = v; if (v) loadLocalModels(); }}>
 					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
 				</button>
-				<button class="header-icon-btn" title="Provenance" onclick={() => { showProvenance = !showProvenance; showSettings = false; showNotebook = false; showTools = false; if (showProvenance) loadProvenance(); }}
-					class:active={showProvenance}>
+				<button class="header-icon-btn" title="MCP Servers"
+					class:active={showMCP}
+					onclick={() => { const v = !showMCP; closeAllPanels(); showMCP = v; if (v) loadMCPServers(); }}>
+					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/><line x1="1" y1="16" x2="23" y2="16"/><circle cx="5" cy="7" r="1" fill="currentColor"/><circle cx="5" cy="13" r="1" fill="currentColor"/><circle cx="5" cy="19" r="1" fill="currentColor"/></svg>
+					{#if Object.keys(mcpServers).length > 0}<span class="icon-badge">{Object.keys(mcpServers).length}</span>{/if}
+				</button>
+				<button class="header-icon-btn" title="Provenance"
+					class:active={showProvenance}
+					onclick={() => { const v = !showProvenance; closeAllPanels(); showProvenance = v; if (v) loadProvenance(); }}>
 					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20v-6M6 20V10M18 20V4"/></svg>
 				</button>
-				<button class="header-icon-btn" title="Notebook" onclick={() => { showNotebook = !showNotebook; showSettings = false; showProvenance = false; showTools = false; }}
-					class:active={showNotebook}>
+				<button class="header-icon-btn" title="Notebook"
+					class:active={showNotebook}
+					onclick={() => { const v = !showNotebook; closeAllPanels(); showNotebook = v; }}>
 					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h6"/><path d="M8 11h8"/></svg>
 					{#if notebooks.length > 0}<span class="icon-badge">{notebooks.length}</span>{/if}
 				</button>
 				{#if toolCount > 0}
 				<button class="header-icon-btn" title="{toolCount} tools available"
 					class:active={showTools}
-					onclick={() => { showTools = !showTools; showSettings = false; showNotebook = false; showProvenance = false; if (showTools) loadTools(); }}>
+					onclick={() => { const v = !showTools; closeAllPanels(); showTools = v; if (v) loadTools(); }}>
 					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
 					<span class="icon-badge">{toolCount}</span>
 				</button>
@@ -687,51 +701,59 @@
 			</div>
 			{/if}
 
-						<!-- MCP Servers -->
-				<div class="setting-group">
-					<div class="setting-label">MCP Servers</div>
-					{#if Object.keys(mcpServers).length > 0}
-					<div class="mcp-list">
-						{#each Object.entries(mcpServers) as [name, server]}
-						<div class="mcp-server">
-							<div class="mcp-server-info">
-								<span class="mcp-name">{name}</span>
-								<span class="mcp-tools">{server.tools} tools</span>
-							</div>
-							<button class="mcp-disconnect" onclick={() => disconnectMCPServer(name)}>x</button>
-						</div>
-						{/each}
-					</div>
-					{/if}
-					<div class="mcp-presets">
-						<div class="mcp-presets-title">Quick Connect</div>
-						{#each [
-							{name: 'filesystem', cmd: 'npx', args: '@modelcontextprotocol/server-filesystem /home', desc: 'File access'},
-							{name: 'github', cmd: 'npx', args: '@modelcontextprotocol/server-github', desc: 'GitHub repos & issues'},
-							{name: 'sqlite', cmd: 'npx', args: '@modelcontextprotocol/server-sqlite --db-path ./data.db', desc: 'SQLite queries'},
-							{name: 'memory', cmd: 'npx', args: '@modelcontextprotocol/server-memory', desc: 'Knowledge graph'},
-							{name: 'brave-search', cmd: 'npx', args: '@modelcontextprotocol/server-brave-search', desc: 'Web search'},
-						] as preset}
-						<button class="mcp-preset" onclick={() => { mcpName = preset.name; mcpCommand = preset.cmd; mcpArgs = preset.args; }}>
-							<span class="mcp-preset-name">{preset.name}</span>
-							<span class="mcp-preset-desc">{preset.desc}</span>
-						</button>
-						{/each}
-					</div>
-
-					<div class="mcp-connect-form">
-						<input type="text" placeholder="Server name" bind:value={mcpName} />
-						<input type="text" placeholder="Command (e.g., npx or /path/to/binary)" bind:value={mcpCommand} />
-						<input type="text" placeholder="Args (e.g., @modelcontextprotocol/server-github)" bind:value={mcpArgs} />
-						<button class="mcp-connect-btn" onclick={connectMCPServer}
-							disabled={!mcpName.trim() || !mcpCommand.trim()}>Connect</button>
-					</div>
-					<div class="setting-note">
-						Click a preset to fill the form, then Connect. Or enter any MCP server command.
-						<br/><a href="https://modelcontextprotocol.io/servers" target="_blank">Browse 100+ MCP servers</a>
-						 · <a href="https://mcp.so" target="_blank">mcp.so directory</a>
-					</div>
+			<!-- MCP panel -->
+			{#if showMCP}
+			<div class="mcp-panel">
+				<div class="mcp-panel-header">
+					<h3>MCP Servers</h3>
+					<button class="close-btn" onclick={() => showMCP = false}>✕</button>
 				</div>
+
+				{#if Object.keys(mcpServers).length > 0}
+				<div class="mcp-list">
+					{#each Object.entries(mcpServers) as [name, server]}
+					<div class="mcp-server">
+						<div class="mcp-server-info">
+							<span class="mcp-name">{name}</span>
+							<span class="mcp-tools">{server.tools} tools</span>
+						</div>
+						<button class="mcp-disconnect" onclick={() => disconnectMCPServer(name)}>✕</button>
+					</div>
+					{/each}
+				</div>
+				{/if}
+
+				<div class="mcp-presets">
+					<div class="mcp-presets-title">Quick Connect</div>
+					{#each [
+						{name: 'filesystem', cmd: 'npx', args: '@modelcontextprotocol/server-filesystem /home', desc: 'File access'},
+						{name: 'github', cmd: 'npx', args: '@modelcontextprotocol/server-github', desc: 'GitHub repos & issues'},
+						{name: 'sqlite', cmd: 'npx', args: '@modelcontextprotocol/server-sqlite --db-path ./data.db', desc: 'SQLite queries'},
+						{name: 'memory', cmd: 'npx', args: '@modelcontextprotocol/server-memory', desc: 'Knowledge graph'},
+						{name: 'brave-search', cmd: 'npx', args: '@modelcontextprotocol/server-brave-search', desc: 'Web search'},
+					] as preset}
+					<button class="mcp-preset" onclick={() => { mcpName = preset.name; mcpCommand = preset.cmd; mcpArgs = preset.args; }}>
+						<span class="mcp-preset-name">{preset.name}</span>
+						<span class="mcp-preset-desc">{preset.desc}</span>
+					</button>
+					{/each}
+				</div>
+
+				<div class="mcp-connect-form">
+					<input type="text" placeholder="Server name" bind:value={mcpName} />
+					<input type="text" placeholder="Command (e.g., npx or /path/to/binary)" bind:value={mcpCommand} />
+					<input type="text" placeholder="Args (e.g., @modelcontextprotocol/server-github)" bind:value={mcpArgs} />
+					<button class="mcp-connect-btn" onclick={connectMCPServer}
+						disabled={!mcpName.trim() || !mcpCommand.trim()}>Connect</button>
+				</div>
+
+				<div class="setting-note">
+					Click a preset to fill the form, then Connect. Or enter any MCP server command.
+					<br/><a href="https://modelcontextprotocol.io/servers" target="_blank">Browse 100+ MCP servers</a>
+					 · <a href="https://mcp.so" target="_blank">mcp.so directory</a>
+				</div>
+			</div>
+			{/if}
 
 			<!-- Tools panel -->
 			{#if showTools}
@@ -1060,7 +1082,12 @@
 	.prov-tags { font-size: 10px; color: var(--text-muted); }
 	.prov-id { font-size: 9px; color: var(--text-muted); opacity: 0.5; margin-top: 4px; font-family: monospace; }
 
-	/* MCP servers in settings */
+	/* MCP panel */
+	.mcp-panel { width: 300px; background: var(--bg-secondary); border-left: 1px solid var(--border); padding: 14px; overflow-y: auto; flex-shrink: 0; animation: slideInRight 0.3s ease; }
+	.mcp-panel-header { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+	.mcp-panel-header h3 { margin: 0; font-size: 14px; color: var(--accent); font-weight: 600; flex: 1; }
+
+	/* MCP servers */
 	.mcp-list { margin-bottom: 8px; }
 	.mcp-server { display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; background: var(--bg-primary); border-radius: var(--radius-sm); margin-bottom: 4px; }
 	.mcp-server-info { display: flex; gap: 8px; align-items: center; }
