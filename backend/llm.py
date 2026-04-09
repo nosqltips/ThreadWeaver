@@ -39,8 +39,19 @@ async def stream_response(
         ):
             yield chunk
     elif provider == "local":
-        async for chunk in _stream_local(messages, system_prompt):
-            yield chunk
+        if use_tools:
+            # Ollama supports OpenAI-format tool calling
+            async for chunk in _agentic_loop_openai(
+                messages, system_prompt, use_tools,
+                api_key="ollama",
+                base_url=config.get_base_url("local") or "http://localhost:11434/v1",
+                model=config.get_model("local") or "llama3",
+            ):
+                yield chunk
+        else:
+            # Simple streaming fallback (no tools)
+            async for chunk in _stream_local(messages, system_prompt):
+                yield chunk
     else:
         yield f"Unknown provider: {provider}"
 
