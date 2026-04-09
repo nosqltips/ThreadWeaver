@@ -573,6 +573,14 @@
 
 				{#each messages as msg, i}
 				<div class="msg {msg.role}">
+					<div class="msg-avatar">
+						{#if msg.role === 'user'}
+						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+						{:else}
+						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 1 4 4v2a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z"/><path d="M6 12h12l2 10H4l2-10z"/></svg>
+						{/if}
+					</div>
+					<div class="msg-body">
 					<div class="msg-header">
 						<div class="msg-meta">
 							<span class="role">{msg.role === 'user' ? 'You' : 'Assistant'}</span>
@@ -595,6 +603,7 @@
 					</div>
 					{/if}
 					<div class="msg-content">{msg.content}</div>
+					</div>
 				</div>
 				{/each}
 
@@ -1018,15 +1027,21 @@
 	.welcome-hint { text-align: center; color: var(--text-muted); font-size: 13px; font-style: italic; }
 
 	/* Messages with animations */
-	.msg { margin-bottom: 14px; padding: 12px 16px; border-radius: var(--radius-lg); max-width: 800px; animation: fadeIn 0.3s ease; transition: box-shadow var(--transition); }
+	.msg { margin-bottom: 16px; padding: 14px 16px; border-radius: var(--radius-lg); max-width: 800px; animation: fadeIn 0.3s ease; transition: box-shadow var(--transition); display: flex; gap: 12px; }
 	.msg:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.2); }
-	.msg.user { background: var(--bg-tertiary); margin-left: auto; animation: slideInRight 0.3s ease; border: 1px solid transparent; }
-	.msg.user:hover { border-color: var(--border); }
+	.msg-avatar { flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-top: 2px; }
+	.msg.user .msg-avatar { background: var(--accent); color: #fff; }
+	.msg.assistant .msg-avatar { background: var(--bg-primary); color: var(--accent); border: 1px solid var(--border); }
+	.msg-body { flex: 1; min-width: 0; }
+	.msg.user { background: var(--accent-subtle); margin-left: auto; animation: slideInRight 0.3s ease; border: 1px solid var(--accent-glow); border-left: 3px solid var(--accent); }
+	.msg.user:hover { border-color: var(--accent); }
+	.msg.user .role { color: var(--accent); }
 	.msg.assistant { background: var(--bg-secondary); border: 1px solid var(--border); animation: slideInLeft 0.3s ease; }
 	.msg.streaming { border-color: var(--accent-glow); box-shadow: 0 0 16px var(--accent-glow); }
 	.msg-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 	.msg-meta { display: flex; align-items: center; gap: 8px; }
 	.role { font-size: 10px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; }
+	.msg.assistant .role { color: var(--text-muted); }
 	.msg-time { font-size: 10px; color: var(--text-muted); font-weight: 400; }
 	.msg-actions { display: flex; gap: 4px; opacity: 0; transition: opacity var(--transition); }
 	.msg:hover .msg-actions { opacity: 1; }
