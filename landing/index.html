@@ -45,6 +45,32 @@
         .feature h3 { font-size: 16px; color: #fff; margin-bottom: 8px; }
         .feature p { font-size: 14px; color: #999; line-height: 1.5; }
 
+        .version { text-align: center; color: #666; font-size: 13px; margin-top: 20px; }
+
+        .install {
+            max-width: 900px; margin: 0 auto; padding: 0 24px 60px;
+        }
+        .install h2 { text-align: center; font-size: 28px; margin-bottom: 32px; color: #fff; }
+        .install-tabs {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px;
+        }
+        .install-option {
+            background: #16162a; border: 1px solid #2a2a4a; border-radius: 12px; padding: 20px;
+        }
+        .install-option:hover { border-color: #7b68ee; }
+        .install-option h3 {
+            font-size: 14px; color: #7b68ee; margin-bottom: 12px;
+            text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;
+        }
+        .install-option pre {
+            background: #0d0d18; border: 1px solid #2a2a4a; border-radius: 6px;
+            padding: 12px; overflow-x: auto; margin: 0;
+        }
+        .install-option code {
+            font-family: 'Monaco', 'Menlo', monospace; font-size: 12px;
+            color: #00d4ff; line-height: 1.5;
+        }
+
         .comparison {
             max-width: 900px; margin: 0 auto; padding: 0 24px 60px;
         }
@@ -84,38 +110,80 @@
                 Powered by AgentStateGraph
             </a>
         </div>
+        <p class="version">v0.3.0-beta · Open source · MIT/Apache-2.0</p>
     </section>
 
     <section class="features">
         <div class="feature">
             <div class="icon">⑂</div>
             <h3>Branch Any Message</h3>
-            <p>Click any message to fork the conversation. Explore "what if I'd asked differently?" without losing the original thread.</p>
+            <p>Click any message to fork the conversation. Explore "what if I'd asked differently?" without losing the original thread. Visual branch tree shows your conversation history.</p>
         </div>
         <div class="feature">
             <div class="icon">🖼</div>
             <h3>Multimodal</h3>
-            <p>Paste images, drop files. Works with Claude, GPT, and vision-capable local models like LLaVA.</p>
+            <p>Paste images, drop files. Works with Claude, GPT, Gemini, Grok, and vision-capable local models.</p>
+        </div>
+        <div class="feature">
+            <div class="icon">🔧</div>
+            <h3>Tool Calling + MCP</h3>
+            <p>Built-in file tools plus any MCP server. The AI reads files, runs commands, queries databases — acts, not just talks. Works with Ollama too.</p>
         </div>
         <div class="feature">
             <div class="icon">📓</div>
             <h3>Notebook</h3>
-            <p>Save any message to your notebook with a tag. Find it later by searching. No more copy-paste to Notes.</p>
+            <p>Save any message to your notebook with a tag. Add comments, branch new chats from highlights, copy to clipboard.</p>
         </div>
         <div class="feature">
-            <div class="icon">🔍</div>
-            <h3>Search Everything</h3>
-            <p>Full-text search across all conversations and branches. Find that answer from last week in seconds.</p>
+            <div class="icon">📁</div>
+            <h3>Projects</h3>
+            <p>Group related conversations into projects with shared context. Like ChatGPT projects, but open source and versioned.</p>
         </div>
         <div class="feature">
-            <div class="icon">🌳</div>
-            <h3>Branch Tree</h3>
-            <p>See your conversation's branch history as a visual tree. Navigate between branches with one click.</p>
+            <div class="icon">📊</div>
+            <h3>Full Provenance</h3>
+            <p>Every message exchange is a versioned commit with intent, reasoning, and confidence. View the complete timeline via AgentStateGraph.</p>
+        </div>
+        <div class="feature">
+            <div class="icon">🎨</div>
+            <h3>Customizable</h3>
+            <p>10 accent colors, 10 background themes. Make it feel like yours. Settings persist across sessions.</p>
         </div>
         <div class="feature">
             <div class="icon">🤖</div>
-            <h3>Any LLM</h3>
-            <p>Claude, GPT, Ollama, LM Studio, or any OpenAI-compatible endpoint. Switch providers per conversation.</p>
+            <h3>6 LLM Providers</h3>
+            <p>Claude, GPT, Gemini, Grok, Ollama, or any OpenAI-compatible endpoint. Bring your own keys. Switch providers per conversation.</p>
+        </div>
+        <div class="feature">
+            <div class="icon">🚀</div>
+            <h3>Self-Hosted</h3>
+            <p>Docker, native install, or PicoClaw/Jetson ARM64. Your data stays yours. No accounts, no tracking.</p>
+        </div>
+    </section>
+
+    <section class="install">
+        <h2>Get Started in 60 Seconds</h2>
+        <div class="install-tabs">
+            <div class="install-option">
+                <h3>Docker</h3>
+                <pre><code>git clone https://github.com/nosqltips/ThreadWeaver
+cd ThreadWeaver
+docker compose up -d
+# → http://localhost:3000</code></pre>
+            </div>
+            <div class="install-option">
+                <h3>With Local Ollama</h3>
+                <pre><code>docker compose -f docker-compose.yml \
+  -f docker-compose.ollama.yml up -d
+docker compose exec ollama \
+  ollama pull llama3.2:3b</code></pre>
+            </div>
+            <div class="install-option">
+                <h3>Native (PicoClaw/Linux)</h3>
+                <pre><code>git clone https://github.com/nosqltips/ThreadWeaver
+cd ThreadWeaver
+bash install-native.sh</code></pre>
+            </div>
         </div>
     </section>
 
