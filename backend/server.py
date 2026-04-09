@@ -28,10 +28,12 @@ from llm import stream_response
 from state import ChatStateManager
 from tools import mcp_client, get_tool_definitions
 
+VERSION = "0.3.0-beta.1"
+
 app = FastAPI(
     title="ThreadWeaver",
-    description="LLM-agnostic chat with StateGraph-native branching",
-    version="0.1.0",
+    description="AI chat with branchable conversations, powered by AgentStateGraph",
+    version=VERSION,
 )
 
 app.add_middleware(
@@ -451,7 +453,7 @@ def health():
         "stategraph": "connected" if state.sg else "not available",
         "mcp_servers": len(mcp_client.servers),
         "tools_available": len(get_tool_definitions()),
-        "version": "0.1.0",
+        "version": VERSION,
     }
 
 

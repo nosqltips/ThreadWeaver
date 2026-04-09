@@ -626,6 +626,7 @@
 			<div class="settings-panel">
 				<div class="settings-header">
 					<h3>⚙ Settings</h3>
+					<span class="version-badge">v0.3.0-beta</span>
 					<button class="close-btn" onclick={() => showSettings = false}>✕</button>
 				</div>
 
@@ -1129,7 +1130,9 @@
 
 	/* Side panels with animation */
 	.notebook, .settings-panel { width: 300px; background: var(--bg-secondary); border-left: 1px solid var(--border); padding: 14px; overflow-y: auto; flex-shrink: 0; animation: slideInRight 0.3s ease; }
-	.notebook-header, .settings-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+	.notebook-header, .settings-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 8px; }
+	.settings-header h3 { flex: 1; }
+	.version-badge { font-size: 9px; color: var(--accent); background: var(--accent-subtle); border: 1px solid var(--accent); padding: 2px 6px; border-radius: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
 	.notebook-header h3, .settings-header h3 { margin: 0; font-size: 14px; color: var(--accent); font-weight: 600; }
 	.close-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; transition: all var(--transition); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); }
 	.close-btn:hover { color: var(--error); background: rgba(255,68,68,0.1); }
