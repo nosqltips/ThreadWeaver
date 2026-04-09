@@ -10,6 +10,7 @@
 		getConversationTree,
 		getSettings,
 		listTools,
+		abortCurrentStream,
 		connectMCP,
 		listMCPServers,
 		deleteConversation,
@@ -927,9 +928,15 @@
 					onkeydown={handleKeydown}
 					onpaste={handlePaste}
 					disabled={isStreaming} rows="3"></textarea>
-				<button class="send" onclick={send} disabled={isStreaming || (!inputText.trim() && pendingImages.length === 0)}>
-					{isStreaming ? '...' : 'Send'}
+				{#if isStreaming}
+				<button class="send cancel" onclick={() => abortCurrentStream()}>
+					Stop
 				</button>
+				{:else}
+				<button class="send" onclick={send} disabled={!inputText.trim() && pendingImages.length === 0}>
+					Send
+				</button>
+				{/if}
 			</div>
 		</div>
 	</main>
@@ -1192,6 +1199,8 @@
 	.send:hover:not(:disabled) { filter: brightness(1.15); transform: translateY(-1px); box-shadow: 0 4px 12px var(--accent-glow); }
 	.send:active:not(:disabled) { transform: translateY(0); }
 	.send:disabled { opacity: 0.4; cursor: not-allowed; }
+	.send.cancel { background: var(--error); }
+	.send.cancel:hover { background: #ff6666; }
 
 	/* Provider/model selector */
 	.model-label { font-size: 12px; color: var(--text-muted); padding: 5px 10px; background: var(--bg-tertiary); border-radius: var(--radius-sm); border: 1px solid var(--border); }

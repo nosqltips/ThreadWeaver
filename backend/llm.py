@@ -6,6 +6,7 @@ Includes an agentic loop: if the LLM requests tool calls,
 execute them and feed results back until the LLM responds with text.
 """
 
+import asyncio
 import json
 import os
 from typing import AsyncGenerator
@@ -16,6 +17,10 @@ import openai
 
 from config import config
 from tools import execute_tool, get_tool_definitions
+
+# Default timeouts (seconds)
+LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT", "60"))
+LOCAL_LLM_TIMEOUT = float(os.getenv("LOCAL_LLM_TIMEOUT", "120"))
 
 
 async def stream_response(
@@ -64,7 +69,10 @@ async def _agentic_loop_anthropic(
     use_tools: bool = True,
 ) -> AsyncGenerator[str, None]:
     """Anthropic agentic loop: stream text, handle tool calls, repeat."""
-    client = anthropic.AsyncAnthropic(api_key=config.get_api_key("anthropic"))
+    client = anthropic.AsyncAnthropic(
+        api_key=config.get_api_key("anthropic"),
+        timeout=LLM_TIMEOUT,
+    )
     model = config.get_model("anthropic")
 
     api_messages = [
@@ -86,7 +94,14 @@ async def _agentic_loop_anthropic(
         if tools:
             kwargs["tools"] = tools
 
-        response = await client.messages.create(**kwargs)
+        try:
+            response = await client.messages.create(**kwargs)
+        except (anthropic.APITimeoutError, asyncio.TimeoutError):
+            yield f"\n\n⏱ **Request timed out** after {LLM_TIMEOUT}s. The LLM may be slow or unresponsive.\n"
+            return
+        except Exception as e:
+            yield f"\n\n❌ **Error**: {type(e).__name__}: {e}\n"
+            return
 
         # Process content blocks
         has_tool_use = False
@@ -136,9 +151,14 @@ async def _agentic_loop_openai(
     model: str = None,
 ) -> AsyncGenerator[str, None]:
     """OpenAI-compatible agentic loop. Works with OpenAI, Gemini, Grok, etc."""
+    # Local models get a longer timeout (slow inference on small hardware)
+    is_local = (base_url and "localhost" in base_url) or (base_url and "127.0.0.1" in base_url) or "11434" in (base_url or "")
+    timeout = LOCAL_LLM_TIMEOUT if is_local else LLM_TIMEOUT
+
     client = openai.AsyncOpenAI(
         api_key=api_key or config.get_api_key("openai"),
         base_url=base_url or config.get_base_url("openai") or "https://api.openai.com/v1",
+        timeout=timeout,
     )
     model = model or config.get_model("openai") or "gpt-4"
 
@@ -168,7 +188,14 @@ async def _agentic_loop_openai(
         if openai_tools:
             kwargs["tools"] = openai_tools
 
-        response = await client.chat.completions.create(**kwargs)
+        try:
+            response = await client.chat.completions.create(**kwargs)
+        except (openai.APITimeoutError, asyncio.TimeoutError):
+            yield f"\n\n⏱ **Request timed out** after {timeout}s. The model may be slow or unresponsive.\n"
+            return
+        except Exception as e:
+            yield f"\n\n❌ **Error**: {type(e).__name__}: {e}\n"
+            return
         choice = response.choices[0]
 
         if choice.message.content:
@@ -214,24 +241,29 @@ async def _stream_local(
     for m in messages:
         msgs.append({"role": m["role"], "content": _build_openai_content(m)})
 
-    async with httpx.AsyncClient(timeout=120) as client:
-        async with client.stream(
-            "POST",
-            f"{base_url}/chat/completions",
-            json={"model": model, "messages": msgs, "stream": True},
-        ) as response:
-            async for line in response.aiter_lines():
-                if line.startswith("data: "):
-                    data = line[6:]
-                    if data == "[DONE]":
-                        break
-                    try:
-                        chunk = json.loads(data)
-                        content = chunk["choices"][0]["delta"].get("content", "")
-                        if content:
-                            yield content
-                    except (json.JSONDecodeError, KeyError, IndexError):
-                        continue
+    try:
+        async with httpx.AsyncClient(timeout=LOCAL_LLM_TIMEOUT) as client:
+            async with client.stream(
+                "POST",
+                f"{base_url}/chat/completions",
+                json={"model": model, "messages": msgs, "stream": True},
+            ) as response:
+                async for line in response.aiter_lines():
+                    if line.startswith("data: "):
+                        data = line[6:]
+                        if data == "[DONE]":
+                            break
+                        try:
+                            chunk = json.loads(data)
+                            content = chunk["choices"][0]["delta"].get("content", "")
+                            if content:
+                                yield content
+                        except (json.JSONDecodeError, KeyError, IndexError):
+                            continue
+    except (httpx.TimeoutException, asyncio.TimeoutError):
+        yield f"\n\n⏱ **Request timed out** after {LOCAL_LLM_TIMEOUT}s. The local model may be overloaded or unresponsive.\n"
+    except Exception as e:
+        yield f"\n\n❌ **Error**: {type(e).__name__}: {e}\n"
 
 
 # ─── Multimodal content builders ────────────────────────────────

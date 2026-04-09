@@ -58,47 +58,86 @@ export async function getConversationTree(id: string): Promise<any> {
 	return res.json();
 }
 
+// Abort the current in-flight stream (set by sendMessage, used for cancel)
+let currentAbortController: AbortController | null = null;
+
+export function abortCurrentStream() {
+	if (currentAbortController) {
+		currentAbortController.abort();
+		currentAbortController = null;
+	}
+}
+
 export async function sendMessage(
 	convId: string,
 	content: string,
 	onChunk: (text: string) => void,
 	provider?: string,
-	images?: ImageData[]
+	images?: ImageData[],
+	timeoutMs = 180000  // 3 minutes — backend has its own LLM timeout
 ): Promise<string> {
 	const body: any = { content, provider };
 	if (images && images.length > 0) {
 		body.images = images;
 	}
-	const res = await fetch(`${API_BASE}/conversations/${convId}/messages`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify(body),
-	});
 
-	const reader = res.body!.getReader();
-	const decoder = new TextDecoder();
+	const controller = new AbortController();
+	currentAbortController = controller;
+
+	// Idle timeout — abort if no chunk received within timeoutMs
+	let idleTimer: any = null;
+	const resetIdleTimer = () => {
+		if (idleTimer) clearTimeout(idleTimer);
+		idleTimer = setTimeout(() => controller.abort('idle-timeout'), timeoutMs);
+	};
+	resetIdleTimer();
+
 	let fullResponse = '';
 
-	while (true) {
-		const { done, value } = await reader.read();
-		if (done) break;
+	try {
+		const res = await fetch(`${API_BASE}/conversations/${convId}/messages`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body),
+			signal: controller.signal,
+		});
 
-		const text = decoder.decode(value);
-		const lines = text.split('\n');
+		const reader = res.body!.getReader();
+		const decoder = new TextDecoder();
 
-		for (const line of lines) {
-			if (line.startsWith('data: ')) {
-				try {
-					const data = JSON.parse(line.slice(6));
-					if (data.type === 'chunk') {
-						fullResponse += data.content;
-						onChunk(fullResponse);
-					} else if (data.type === 'done') {
-						fullResponse = data.content;
-					}
-				} catch {}
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			resetIdleTimer();
+
+			const text = decoder.decode(value);
+			const lines = text.split('\n');
+
+			for (const line of lines) {
+				if (line.startsWith('data: ')) {
+					try {
+						const data = JSON.parse(line.slice(6));
+						if (data.type === 'chunk') {
+							fullResponse += data.content;
+							onChunk(fullResponse);
+						} else if (data.type === 'done') {
+							fullResponse = data.content;
+						}
+					} catch {}
+				}
 			}
 		}
+	} catch (e: any) {
+		if (e.name === 'AbortError') {
+			fullResponse += `\n\n⏱ Request cancelled or timed out (no response for ${Math.round(timeoutMs/1000)}s).`;
+			onChunk(fullResponse);
+		} else {
+			fullResponse += `\n\n❌ Error: ${e.message || e}`;
+			onChunk(fullResponse);
+		}
+	} finally {
+		if (idleTimer) clearTimeout(idleTimer);
+		currentAbortController = null;
 	}
 
 	return fullResponse;
