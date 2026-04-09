@@ -141,6 +141,7 @@
 	let selectedProvider = $state('anthropic');
 	let providers = $state<any>({});
 	let localModels = $state<any[]>([]);
+	let defaultLocalModel = $state('');
 	let toolCount = $state(0);
 
 	async function loadSettings() {
@@ -156,6 +157,7 @@
 			const res = await fetch(`${API_BASE}/models/local`);
 			const data = await res.json();
 			localModels = data.models || [];
+			defaultLocalModel = data.default || '';
 		} catch {}
 	}
 
@@ -475,7 +477,7 @@
 				{#if selectedProvider === 'local' && localModels.length > 1}
 				<select class="model-select" onchange={(e) => setLocalModel(e.currentTarget.value)}>
 					{#each localModels as m}
-						<option value={m.name} selected={m.name === providers?.local?.model}>{m.name}</option>
+						<option value={m.name} selected={m.name === (providers?.local?.model || defaultLocalModel)}>{m.name}</option>
 					{/each}
 				</select>
 				{:else if selectedProvider === 'local' && localModels.length === 1}
@@ -642,7 +644,7 @@
 						{#if name === 'local' && localModels.length > 0}
 						<select onchange={(e) => setLocalModel(e.currentTarget.value)}>
 							{#each localModels as m}
-							<option value={m.name} selected={m.name === p.model}>{m.name}</option>
+							<option value={m.name} selected={m.name === (p.model || defaultLocalModel)}>{m.name}</option>
 							{/each}
 						</select>
 						<button class="refresh-btn" onclick={loadLocalModels}>↻</button>

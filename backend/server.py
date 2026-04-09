@@ -311,11 +311,34 @@ def set_default_provider(req: DefaultProviderUpdate):
     config.default_provider = req.provider
     return {"status": "ok", "default_provider": req.provider}
 
+def _sort_models(models: list[dict], default_model: str) -> list[dict]:
+    """Sort models: default first, then popular families, then alphabetical."""
+    # Popular model families in priority order
+    priority_prefixes = [
+        "llama3", "llama2", "mistral", "mixtral", "gemma", "phi",
+        "codellama", "deepseek", "qwen", "vicuna", "neural-chat",
+    ]
+
+    def sort_key(m):
+        name = m["name"].lower()
+        # Default model always first
+        if name == default_model.lower() or name.startswith(default_model.lower().split(":")[0]):
+            return (0, 0, name)
+        # Priority by family
+        for i, prefix in enumerate(priority_prefixes):
+            if name.startswith(prefix):
+                return (1, i, name)
+        # Everything else alphabetical
+        return (2, 0, name)
+
+    return sorted(models, key=sort_key)
+
 @app.get("/api/models/local")
 async def list_local_models():
     """List available models from Ollama or any OpenAI-compatible server (llama-server, vLLM, etc.)."""
     import httpx
     base_url = config.get_base_url("local") or "http://localhost:11434"
+    default_model = config.get_model("local") or "llama3"
     ollama_url = base_url.replace("/v1", "")
 
     async with httpx.AsyncClient(timeout=5) as client:
@@ -332,7 +355,8 @@ async def list_local_models():
                     }
                     for m in data.get("models", [])
                 ]
-                return {"models": models, "source": ollama_url, "server_type": "ollama"}
+                models = _sort_models(models, default_model)
+                return {"models": models, "default": default_model, "source": ollama_url, "server_type": "ollama"}
         except Exception:
             pass
 
@@ -350,7 +374,8 @@ async def list_local_models():
                     }
                     for m in data.get("data", [])
                 ]
-                return {"models": models, "source": v1_url, "server_type": "openai-compatible"}
+                models = _sort_models(models, default_model)
+                return {"models": models, "default": default_model, "source": v1_url, "server_type": "openai-compatible"}
         except Exception:
             pass
 
