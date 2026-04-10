@@ -89,6 +89,11 @@ async def stream_response(
     if not config.data.get("tools_enabled", True):
         use_tools = False
 
+    # Check per-provider tools_enabled (local models default to off)
+    provider_config = config.get_provider(provider)
+    if not provider_config.get("tools_enabled", True):
+        use_tools = False
+
     # If tools are active, prepend guidance so models don't go tool-happy
     if use_tools:
         guidance = TOOL_GUIDANCE

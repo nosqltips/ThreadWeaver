@@ -49,6 +49,7 @@ DEFAULT_CONFIG = {
             "model": "llama3",
             "base_url": "http://localhost:11434/v1",
             "label": "Local (Ollama)",
+            "tools_enabled": False,
         },
     },
 }
