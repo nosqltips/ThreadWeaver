@@ -23,6 +23,50 @@ LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT", "60"))
 LOCAL_LLM_TIMEOUT = float(os.getenv("LOCAL_LLM_TIMEOUT", "120"))
 
 
+# Local models known to support tool calling (Ollama / OpenAI-compatible)
+# Models NOT in this list will be sent without tools to avoid 400 errors.
+TOOL_CAPABLE_LOCAL_MODELS = {
+    # Llama 3.x families
+    "llama3", "llama3.1", "llama3.2", "llama3.3",
+    # Mistral with tool support
+    "mistral", "mistral-nemo", "mistral-small", "mixtral",
+    # Qwen
+    "qwen2", "qwen2.5", "qwen3",
+    # Command-R
+    "command-r", "command-r-plus",
+    # Hermes
+    "hermes3", "nous-hermes2",
+    # Firefunction
+    "firefunction-v2",
+    # Granite
+    "granite3", "granite3.1",
+}
+
+
+def supports_tools(provider: str, model: str) -> bool:
+    """Check if a given provider/model combination supports tool calling.
+
+    Cloud providers (Anthropic, OpenAI, Gemini, Grok) all support tools.
+    For local models, we check against a known list of tool-capable families.
+    """
+    if provider in ("anthropic", "openai", "gemini", "grok"):
+        return True
+    if provider == "local":
+        if not model:
+            return False
+        # Strip tag (e.g., "llama3.2:3b" → "llama3.2")
+        base = model.split(":")[0].lower()
+        # Strip provider prefix (e.g., "registry.ollama.ai/library/llama3" → "llama3")
+        if "/" in base:
+            base = base.rsplit("/", 1)[1]
+        # Match against known families
+        for family in TOOL_CAPABLE_LOCAL_MODELS:
+            if base == family or base.startswith(family + "."):
+                return True
+        return False
+    return False
+
+
 async def stream_response(
     messages: list[dict],
     provider: str = None,
@@ -44,17 +88,22 @@ async def stream_response(
         ):
             yield chunk
     elif provider == "local":
-        if use_tools:
-            # Ollama supports OpenAI-format tool calling
+        local_model = config.get_model("local") or "llama3"
+        # Only use tools if the model is known to support them
+        model_supports_tools = use_tools and supports_tools("local", local_model)
+        if model_supports_tools:
             async for chunk in _agentic_loop_openai(
-                messages, system_prompt, use_tools,
+                messages, system_prompt, True,
                 api_key="ollama",
                 base_url=config.get_base_url("local") or "http://localhost:11434/v1",
-                model=config.get_model("local") or "llama3",
+                model=local_model,
             ):
                 yield chunk
         else:
-            # Simple streaming fallback (no tools)
+            # Model doesn't support tools (or tools disabled) — simple streaming
+            if use_tools:
+                # User wanted tools but model doesn't support them — let them know
+                yield f"ℹ️ *Model `{local_model}` doesn't support tool calling. Responding without tools.*\n\n"
             async for chunk in _stream_local(messages, system_prompt):
                 yield chunk
     else:
@@ -193,6 +242,22 @@ async def _agentic_loop_openai(
         except (openai.APITimeoutError, asyncio.TimeoutError):
             yield f"\n\n⏱ **Request timed out** after {timeout}s. The model may be slow or unresponsive.\n"
             return
+        except openai.BadRequestError as e:
+            err_msg = str(e).lower()
+            # Some models report tool incompatibility only at request time.
+            # Retry once without tools as a defense-in-depth fallback.
+            if "tool" in err_msg and openai_tools:
+                yield f"\nℹ️ *Model `{model}` doesn't support tool calling. Retrying without tools...*\n\n"
+                kwargs.pop("tools", None)
+                openai_tools = None  # disable for remaining iterations
+                try:
+                    response = await client.chat.completions.create(**kwargs)
+                except Exception as e2:
+                    yield f"\n\n❌ **Error after retry**: {type(e2).__name__}: {e2}\n"
+                    return
+            else:
+                yield f"\n\n❌ **Bad request**: {e}\n"
+                return
         except Exception as e:
             yield f"\n\n❌ **Error**: {type(e).__name__}: {e}\n"
             return
