@@ -213,7 +213,7 @@ threadweaver/
 
 ## License
 
-MIT OR Apache-2.0
+[Business Source License 1.1](LICENSE) — Use ThreadWeaver freely, self-host it, modify it. The only restriction: you cannot offer ThreadWeaver itself as a competing commercial hosted service. Every version automatically converts to [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) four years after release. See [LICENSING.md](LICENSING.md) for details.
 
 ## Links
 
