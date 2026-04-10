@@ -77,6 +77,7 @@
 	let providers = $state<any>({});
 	let localModels = $state<any[]>([]);
 	let defaultLocalModel = $state('');
+	let toolsEnabled = $state(true);
 
 	const currentTitle = $derived(
 		conversations.find(c => c.id === currentConvId)?.title || 'ThreadWeaver'
@@ -119,7 +120,17 @@
 			const settings = await getSettings();
 			selectedProvider = settings.default_provider;
 			providers = settings.providers || {};
+			toolsEnabled = settings.tools_enabled ?? true;
 		} catch {}
+	}
+
+	async function toggleTools(enabled: boolean) {
+		toolsEnabled = enabled;
+		await fetch(`${API_BASE}/settings/tools`, {
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ enabled }),
+		});
 	}
 
 	async function loadLocalModels() {
@@ -345,11 +356,13 @@
 			{#if showSettings}
 			<SettingsPanel
 				{providers} {localModels} {defaultLocalModel} apiBase={API_BASE}
+				{toolsEnabled}
 				onClose={() => showSettings = false}
 				onSetLocalModel={setLocalModel}
 				onSaveApiKey={saveApiKey}
 				onLoadSettings={loadSettings}
 				onLoadLocalModels={loadLocalModels}
+				onToggleTools={toggleTools}
 			/>
 			{/if}
 

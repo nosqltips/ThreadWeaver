@@ -290,8 +290,17 @@ class DefaultProviderUpdate(BaseModel):
 def get_settings():
     return {
         "default_provider": config.default_provider,
+        "tools_enabled": config.data.get("tools_enabled", True),
         "providers": config.get_all_providers(),
     }
+
+@app.put("/api/settings/tools")
+def set_tools_enabled(req: dict):
+    """Toggle tool calling on/off globally."""
+    enabled = req.get("enabled", True)
+    config.data["tools_enabled"] = enabled
+    config.save()
+    return {"status": "ok", "tools_enabled": enabled}
 
 @app.put("/api/settings/provider/{name}")
 def update_provider(name: str, req: ProviderUpdate):

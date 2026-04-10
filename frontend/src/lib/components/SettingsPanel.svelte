@@ -1,17 +1,21 @@
 <script lang="ts">
 	let {
 		providers, localModels, defaultLocalModel, apiBase,
+		toolsEnabled = true,
 		onClose, onSetLocalModel, onSaveApiKey, onLoadSettings, onLoadLocalModels,
+		onToggleTools,
 	}: {
 		providers: any;
 		localModels: any[];
 		defaultLocalModel: string;
 		apiBase: string;
+		toolsEnabled: boolean;
 		onClose: () => void;
 		onSetLocalModel: (m: string) => void | Promise<void>;
 		onSaveApiKey: (provider: string, key: string) => void | Promise<void>;
 		onLoadSettings: () => void | Promise<void>;
 		onLoadLocalModels: () => void | Promise<void>;
+		onToggleTools: (enabled: boolean) => void | Promise<void>;
 	} = $props();
 
 	function setBackgroundColor(color: string) {
@@ -36,6 +40,26 @@
 		<h3>⚙ Settings</h3>
 		<span class="version-badge">v0.3.5-beta.2</span>
 		<button class="close-btn" onclick={onClose}>✕</button>
+	</div>
+
+	<!-- Tool calling toggle -->
+	<div class="setting-group">
+		<div class="setting-label">Tool Calling</div>
+		<div class="setting-row" style="justify-content: space-between; align-items: center;">
+			<span style="font-size: 12px; color: var(--text-secondary)">
+				{toolsEnabled ? 'Tools sent to LLM on each request' : 'Tools disabled — pure chat mode'}
+			</span>
+			<button class="toggle-btn" class:active={toolsEnabled}
+				onclick={() => onToggleTools(!toolsEnabled)}
+				aria-label="Toggle tools">
+				<span class="toggle-knob"></span>
+			</button>
+		</div>
+		{#if toolsEnabled}
+		<div style="font-size: 10px; color: var(--text-muted); margin-top: 4px; line-height: 1.4;">
+			Models are guided to only use tools when needed. Small local models may still over-trigger — disable if you see unwanted tool calls.
+		</div>
+		{/if}
 	</div>
 
 	{#each Object.entries(providers) as [name, p]}
@@ -137,4 +161,8 @@
 	.color-picker-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 	.color-swatch { width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: all var(--transition); }
 	.color-swatch:hover { transform: scale(1.2); }
+	.toggle-btn { position: relative; width: 40px; height: 22px; border-radius: 11px; border: none; background: var(--bg-primary); cursor: pointer; transition: background 0.2s; flex-shrink: 0; }
+	.toggle-btn.active { background: var(--accent); }
+	.toggle-knob { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--text-primary); transition: transform 0.2s; }
+	.toggle-btn.active .toggle-knob { transform: translateX(18px); }
 </style>

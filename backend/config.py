@@ -14,6 +14,7 @@ CONFIG_PATH = Path(os.getenv("THREADWEAVER_CONFIG", "./threadweaver_config.json"
 
 DEFAULT_CONFIG = {
     "default_provider": "anthropic",
+    "tools_enabled": True,
     "providers": {
         "anthropic": {
             "enabled": True,

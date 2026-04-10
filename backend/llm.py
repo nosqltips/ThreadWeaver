@@ -67,6 +67,15 @@ def supports_tools(provider: str, model: str) -> bool:
     return False
 
 
+TOOL_GUIDANCE = (
+    "You have access to tools, but only use them when the user's question "
+    "specifically requires real-time data, file operations, device control, "
+    "database queries, or actions you cannot answer from your own knowledge. "
+    "For general knowledge, conversation, coding help, explanations, and "
+    "creative tasks, answer directly without calling any tools."
+)
+
+
 async def stream_response(
     messages: list[dict],
     provider: str = None,
@@ -75,6 +84,18 @@ async def stream_response(
 ) -> AsyncGenerator[str, None]:
     """Stream a chat response, handling tool calls in an agentic loop."""
     provider = provider or config.default_provider
+
+    # Check global tools_enabled setting (user can toggle off in settings)
+    if not config.data.get("tools_enabled", True):
+        use_tools = False
+
+    # If tools are active, prepend guidance so models don't go tool-happy
+    if use_tools:
+        guidance = TOOL_GUIDANCE
+        if system_prompt:
+            system_prompt = f"{guidance}\n\n{system_prompt}"
+        else:
+            system_prompt = guidance
 
     if provider == "anthropic":
         async for chunk in _agentic_loop_anthropic(messages, system_prompt, use_tools):
