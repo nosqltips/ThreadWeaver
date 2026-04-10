@@ -34,7 +34,7 @@
 <div class="settings-panel">
 	<div class="settings-header">
 		<h3>⚙ Settings</h3>
-		<span class="version-badge">v0.3.0-beta</span>
+		<span class="version-badge">v0.3.5-beta.2</span>
 		<button class="close-btn" onclick={onClose}>✕</button>
 	</div>
 

@@ -5,6 +5,23 @@ All notable changes to ThreadWeaver are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
+## [0.3.5-beta.2] — 2026-04-09
+
+Tracks AgentStateGraph 0.3.5-beta.2. Bumps the dependency, picks up the
+renamed Python class, and carries the same naming hygiene through backend
+and frontend surfaces.
+
+### Changed
+- **AgentStateGraph dependency:** bumped to `agentstategraph-py >= 0.3.5-beta.2`. The Python class was renamed from `StateGraph` to `AgentStateGraph` in that release; `backend/state.py` now imports `AgentStateGraph as AGS`. Older 0.3.0-beta.1 wheels will no longer import — rebuild the wheel after pulling.
+- **Log tags:** `[StateGraph]` → `[AgentStateGraph]` in backend startup and commit logs.
+- **Health endpoint:** the key in `GET /api/health` was renamed from `stategraph` to `agentstategraph` for consistency with the upstream name. No frontend consumers of this key.
+- **MCP example:** `MCPConnectRequest` example name comment updated to `"agentstategraph"` to match the upstream repo's `.mcp.json` key and the recommended config in the AgentStateGraph README.
+- **Frontend version badge** in the Settings panel now reads `v0.3.5-beta.2`.
+
+### Notes
+- LLM connector (tool-capable model detection + fallback) from 0.3.0-beta.1 carries forward unchanged.
+- Component refactor, markdown rendering, and conversation export from the previous session are unchanged.
+
 ## [0.3.0-beta.1] — 2026-04-09
 
 ### Status

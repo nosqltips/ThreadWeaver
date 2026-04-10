@@ -1,5 +1,5 @@
 """
-StateGraph-native chat state manager.
+AgentStateGraph-native chat state manager.
 
 Every conversation is a branch. Every message exchange is a commit
 with intent metadata. Branching a conversation forks the state graph.
@@ -12,9 +12,11 @@ import time
 from dataclasses import dataclass, field
 from typing import Optional
 
-# Try to import AgentStateGraph; fall back to simple dict storage
+# Try to import AgentStateGraph; fall back to simple dict storage.
+# Requires agentstategraph-py >= 0.3.5-beta.2 (class was renamed from
+# StateGraph to AgentStateGraph in that release).
 try:
-    from agentstategraph_py import StateGraph as AGS
+    from agentstategraph_py import AgentStateGraph as AGS
     HAS_AGS = True
 except ImportError:
     HAS_AGS = False
@@ -63,13 +65,13 @@ class ChatStateManager:
         # Initialize AgentStateGraph if available
         if HAS_AGS and db_path:
             self.sg = AGS(db_path)
-            print(f"[StateGraph] Connected to {db_path}")
+            print(f"[AgentStateGraph] Connected to {db_path}")
         elif HAS_AGS:
             self.sg = AGS()
-            print("[StateGraph] Running in-memory")
+            print("[AgentStateGraph] Running in-memory")
         else:
             self.sg = None
-            print("[StateGraph] Not available — using simple storage")
+            print("[AgentStateGraph] Not available — using simple storage")
 
     def _next_id(self) -> str:
         self._counter += 1
@@ -81,7 +83,7 @@ class ChatStateManager:
             return
 
         try:
-            # Store conversation as JSON in StateGraph
+            # Store conversation as JSON in AgentStateGraph
             conv_data = {
                 "title": conv.title,
                 "message_count": len(conv.messages),
@@ -115,7 +117,7 @@ class ChatStateManager:
                 agent="threadweaver",
             )
         except Exception as e:
-            print(f"[StateGraph] Commit error: {e}")
+            print(f"[AgentStateGraph] Commit error: {e}")
 
     def create_conversation(self, title: str = "New Chat") -> Conversation:
         conv_id = self._next_id()
@@ -123,7 +125,7 @@ class ChatStateManager:
         conv = Conversation(id=conv_id, title=title, branch=branch)
         self.conversations[conv_id] = conv
 
-        # Create branch in StateGraph
+        # Create branch in AgentStateGraph
         if self.sg:
             try:
                 self.sg.branch(branch)
@@ -148,7 +150,7 @@ class ChatStateManager:
         if len(conv.messages) == 1 and role == "user":
             conv.title = content[:50] + ("..." if len(content) > 50 else "")
 
-        # Commit to StateGraph
+        # Commit to AgentStateGraph
         category = "Explore" if role == "user" else "Refine"
         self._commit_to_sg(
             conv,
@@ -179,7 +181,7 @@ class ChatStateManager:
         )
         self.conversations[new_id] = new_conv
 
-        # Create branch in StateGraph from the source branch
+        # Create branch in AgentStateGraph from the source branch
         if self.sg:
             try:
                 self.sg.branch(new_branch, source.branch)
@@ -241,7 +243,7 @@ class ChatStateManager:
                 for r in sg_results[:5]:
                     results.append({
                         "conversation_id": "sg",
-                        "conversation_title": f"[StateGraph] {r.get('intent', {}).get('description', '')}",
+                        "conversation_title": f"[AgentStateGraph] {r.get('intent', {}).get('description', '')}",
                         "message_index": 0,
                         "role": "system",
                         "content_preview": r.get("reasoning", "")[:100],
@@ -272,7 +274,7 @@ class ChatStateManager:
         if tag and tag not in conv.tags:
             conv.tags.append(tag)
 
-        # Store highlight in StateGraph as an epoch-like bookmark
+        # Store highlight in AgentStateGraph as an epoch-like bookmark
         if self.sg:
             try:
                 self.sg.create_epoch(

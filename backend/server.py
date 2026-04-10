@@ -28,7 +28,7 @@ from llm import stream_response
 from state import ChatStateManager
 from tools import mcp_client, get_tool_definitions
 
-VERSION = "0.3.0-beta.1"
+VERSION = "0.3.5-beta.2"
 
 app = FastAPI(
     title="ThreadWeaver",
@@ -387,7 +387,7 @@ async def list_local_models():
 # ─── MCP Server Management ────────────────────────────────────────
 
 class MCPConnectRequest(BaseModel):
-    name: str           # e.g., "stategraph"
+    name: str           # e.g., "agentstategraph"
     command: str        # e.g., "/path/to/agentstategraph-mcp"
     args: list[str] = []
 
@@ -450,7 +450,7 @@ def health():
     return {
         "status": "ok",
         "conversations": len(state.conversations),
-        "stategraph": "connected" if state.sg else "not available",
+        "agentstategraph": "connected" if state.sg else "not available",
         "mcp_servers": len(mcp_client.servers),
         "tools_available": len(get_tool_definitions()),
         "version": VERSION,
